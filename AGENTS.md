@@ -29,4 +29,6 @@
 - 更改已有淘汰赛结果时不能使后续 M 记录与负场矛盾；需要先删除后续 M，再修改前面的 Match。
 - Phase 4 已完成：赛事照片压缩为 JPEG 并单独保存、自动统计、ZIP 完整备份/校验/整体恢复、30 天打开时提醒。
 - ZIP 格式为 `data.json` 加 `images/`，schemaVersion 为 1；恢复先完整解析并预览，再在一个 IndexedDB 事务中整体替换。
-- 当前阶段：Phase 5，PWA、离线验收、iPhone 适配与 GitHub Pages 工作流。
+- Phase 5 本地实现已完成：PWA Manifest、图标、Service Worker 预缓存、安全区域与键盘布局、GitHub Pages Actions 工作流。
+- 已用 Pages 子路径的生产构建在 Chrome 断网模式验证：离线重载、IndexedDB 赛事和 Match 保存、Web Worker 10 万次模拟均可用。
+- 发布和真机验收待完成：当前 `gh` 的 GitHub 凭据无效；发布后需要在 iPhone Safari 和添加到主屏幕模式核对安全区域、键盘、照片选择及 Files 备份恢复。
