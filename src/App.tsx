@@ -113,7 +113,7 @@ function EventForm({ initial, onSave, onCancel }: {
   </form>
 }
 
-function gamesFromSequence(sequence: string, previous: DraftGame[], firstTurn: Turn): DraftGame[] {
+function gamesFromSequence(sequence: string, previous: DraftGame[], firstTurn: Turn | null): DraftGame[] {
   return [...sequence].map((result, index) => {
     const old = previous[index]
     const manualTurn = index === 0 || Boolean(old?.manualTurn)
@@ -134,18 +134,18 @@ function MatchEditor({ event, match, newPhase = 'swiss', suggestions, onSave, on
   const phase = match?.phase ?? newPhase
   const round = match?.round ?? (phase === 'swiss' ? countSwiss(event) : countKnockout(event)) + 1
   const [opponentDeck, setOpponentDeck] = useState(match?.opponentDeck ?? '')
-  const [games, setGames] = useState<DraftGame[]>(() => match?.games.map(game => ({ ...game })) ?? gamesFromSequence('OO', [], 'first'))
+  const [games, setGames] = useState<DraftGame[]>(() => match?.games.map(game => ({ ...game })) ?? gamesFromSequence('OO', [], null))
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const sequence = games.map(game => game.result).join('')
   const preview = matchOutcome({ games: games.map(game => ({ ...game, turn: game.turn ?? 'first' })) })
 
   function setSequence(next: string) {
-    setGames(current => gamesFromSequence(next, current, current[0]?.turn ?? 'first'))
+    setGames(current => gamesFromSequence(next, current, current[0]?.turn ?? null))
   }
   function changeResult(index: number, result: GameResult) {
     const next = games.map((game, i) => i === index ? { ...game, result } : game)
-    setGames(gamesFromSequence(next.map(game => game.result).join(''), next, next[0]?.turn ?? 'first'))
+    setGames(gamesFromSequence(next.map(game => game.result).join(''), next, next[0]?.turn ?? null))
   }
   function changeFirstTurn(turn: Turn) {
     setGames(current => gamesFromSequence(current.map(game => game.result).join(''), current, turn))
@@ -156,6 +156,7 @@ function MatchEditor({ event, match, newPhase = 'swiss', suggestions, onSave, on
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!trimDeck(opponentDeck)) return setError('请填写对手卡组。')
+    if (!games[0].turn) return setError('请选择 G1 先后攻。')
     if (games.some(game => !game.turn)) return setError('平局后的下一局，请确认先后攻。')
     if (phase === 'knockout' && preview === 'draw') return setError('淘汰赛 Match 需要分出胜负。')
     setBusy(true)
