@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, Calculator, ChevronRight, ClipboardList, History, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Calculator, ChevronRight, ClipboardList, FileText, History, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
 import { deleteEvent, getSetting, listEvents, saveEvent, setSetting } from './db'
 import { CalculatorPage, LastRoundPanel } from './Calculator'
+import { ReportSheet } from './ReportSheet'
 import {
-  countSwiss, formatDate, inferredNextTurn, localToday, makeId, matchLabel,
-  matchOutcome, placement, recommendedRounds, sortedMatches, swissRecord, totalRecord,
-  type EventRecord, type GameRecord, type GameResult, type MatchRecord, type Turn,
+  countKnockout, countSwiss, formatDate, inferredNextTurn, knockoutStages, localToday,
+  makeId, matchLabel, matchOutcome, placement, recommendedRounds, sortedMatches,
+  stageName, swissRecord, totalRecord,
+  type EventRecord, type GameRecord, type GameResult, type MatchPhase, type MatchRecord, type Turn,
 } from './domain'
 
 type Tab = 'current' | 'calculator' | 'history'
@@ -56,6 +58,7 @@ function EventForm({ initial, onSave, onCancel }: {
     if (!Number.isSafeInteger(finalRounds) || finalRounds < 1) return setError('瑞士轮轮数须为正整数。')
     if (!Number.isSafeInteger(cut) || cut < 2 || cut > people) return setError('晋级人数须为 2 至参赛人数之间的整数。')
     if (initial && finalRounds < countSwiss(initial)) return setError('计划轮数不能少于已记录的瑞士轮数。')
+    if (initial?.advancement === 'in' && cut !== initial.cutSize) return setError('已出轮的赛事不能修改晋级人数。')
     const now = new Date().toISOString()
     const record: EventRecord = initial ? {
       ...initial, name: name.trim(), date, participants: people,
@@ -114,15 +117,17 @@ function gamesFromSequence(sequence: string, previous: DraftGame[], firstTurn: T
   })
 }
 
-function MatchEditor({ event, match, suggestions, onSave, onClose }: {
+function MatchEditor({ event, match, newPhase = 'swiss', suggestions, onSave, onDelete, onClose }: {
   event: EventRecord
   match?: MatchRecord
+  newPhase?: MatchPhase
   suggestions: string[]
   onSave: (record: MatchRecord) => Promise<void>
+  onDelete?: (record: MatchRecord) => Promise<void>
   onClose: () => void
 }) {
-  const phase = match?.phase ?? 'swiss'
-  const round = match?.round ?? countSwiss(event) + 1
+  const phase = match?.phase ?? newPhase
+  const round = match?.round ?? (phase === 'swiss' ? countSwiss(event) : countKnockout(event)) + 1
   const [opponentDeck, setOpponentDeck] = useState(match?.opponentDeck ?? '')
   const [games, setGames] = useState<DraftGame[]>(() => match?.games.map(game => ({ ...game })) ?? gamesFromSequence('OO', [], 'first'))
   const [error, setError] = useState('')
@@ -151,7 +156,12 @@ function MatchEditor({ event, match, suggestions, onSave, onClose }: {
     setBusy(true)
     try {
       await onSave({ id: match?.id ?? makeId(), phase, round, opponentDeck: trimDeck(opponentDeck), games: games as GameRecord[] })
-    } catch { setError('保存失败，请检查设备存储空间后重试。') } finally { setBusy(false) }
+    } catch (error) { setError(error instanceof Error ? error.message : '保存失败，请检查设备存储空间后重试。') } finally { setBusy(false) }
+  }
+  async function deleteMatch() {
+    if (!match || !onDelete || !confirm(`删除 ${matchLabel(match)}？后续编号将自动调整。`)) return
+    setBusy(true)
+    try { await onDelete(match) } catch (error) { setError(error instanceof Error ? error.message : '删除失败。') } finally { setBusy(false) }
   }
 
   return <div className="sheet-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -170,6 +180,7 @@ function MatchEditor({ event, match, suggestions, onSave, onClose }: {
         <div className="result-preview"><span>自动判断 Match</span><strong>{preview === 'win' ? '胜' : preview === 'loss' ? '负' : '平'}</strong></div>
         {error && <p className="error-message" role="alert">{error}</p>}
         <button className="button primary full-width" type="submit" disabled={busy}><Save size={18} />{busy ? '保存中…' : '保存 Match'}</button>
+        {match && <button className="danger-link" type="button" onClick={() => void deleteMatch()} disabled={busy}><Trash2 size={16} />删除这场 Match</button>}
       </form>
     </section>
   </div>
@@ -183,18 +194,46 @@ function MatchList({ event, onEdit }: { event: EventRecord; onEdit: (match: Matc
   </button>)}</div>
 }
 
-function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEndEarly, onDelete, drawRate }: {
+function AdvancementPanel({ event, onAdvanced, onOut }: { event: EventRecord; onAdvanced: (stage: number) => void; onOut: () => void }) {
+  const stages = knockoutStages(event.cutSize)
+  const standard = Number.isInteger(Math.log2(event.cutSize))
+  const [firstStage, setFirstStage] = useState(stages[0])
+  return <section className="decision-panel"><p className="eyebrow">SWISS FINISHED</p><h3>瑞士轮已完成</h3><p>请按正式赛事结果确认是否进入淘汰赛。模拟概率不会自动决定出轮。</p>
+    {!standard && <label className="field"><span className="field-label">自己的首场淘汰赛阶段</span><select value={firstStage} onChange={e => setFirstStage(Number(e.target.value))}>{stages.map(stage => <option value={stage} key={stage}>{stageName(stage)}</option>)}</select><span className="field-hint">自定义 Top 可能包含轮空，按实际首战选择。</span></label>}
+    <div className="decision-actions"><button className="button primary" onClick={() => onAdvanced(firstStage)}>已出轮 · 进入 M1</button><button className="button secondary" onClick={onOut}>没出轮 · 结束赛事</button></div>
+  </section>
+}
+
+function TotalNote({ value, onSave }: { value: string; onSave: (note: string) => Promise<void> }) {
+  const [note, setNote] = useState(value)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => setNote(value), [value])
+  async function save() {
+    setBusy(true)
+    try { await onSave(note); setError('') } catch { setError('总备注保存失败。') } finally { setBusy(false) }
+  }
+  return <section className="section-block"><div className="section-heading"><div><p className="eyebrow">EVENT NOTE</p><h3>赛事总备注</h3></div></div><textarea className="event-note" rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="整场赛事的复盘，可选" />{note !== value && <button className="text-button" onClick={() => void save()} disabled={busy}><Save size={16} />保存总备注</button>}{error && <p className="error-message">{error}</p>}</section>
+}
+
+function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEndEarly, onAdvanced, onSaveNote, onReport, onDelete, drawRate }: {
   event: EventRecord
   onBack?: () => void
   onEditEvent: () => void
   onEditMatch: (match: MatchRecord) => void
-  onAddMatch: () => void
+  onAddMatch: (phase: MatchPhase) => void
   onEndEarly: () => void
+  onAdvanced: (stage: number) => void
+  onSaveNote: (note: string) => Promise<void>
+  onReport: () => void
   onDelete?: () => void
   drawRate: number
 }) {
   const played = countSwiss(event)
-  const canAdd = event.status === 'active' && played < event.plannedSwissRounds
+  const knockouts = countKnockout(event)
+  const canAddSwiss = event.status === 'active' && event.advancement === 'undecided' && played < event.plannedSwissRounds
+  const canAddKnockout = event.status === 'active' && event.advancement === 'in'
+  const nextStage = event.firstKnockoutStage ? event.firstKnockoutStage / 2 ** knockouts : null
   return <div className="page-stack">
     {onBack && <button className="text-button back-link" onClick={onBack}><ArrowLeft size={17} />返回历史</button>}
     <section className="event-hero">
@@ -203,11 +242,14 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
       <div className="hero-deck"><span>使用卡组</span><strong>{event.ownDeck}</strong></div>
     </section>
     <section className="score-strip"><div><span>瑞士战绩</span><strong>{swissRecord(event)}</strong></div><div><span>已完成轮数</span><strong>{played} <small>/ {event.plannedSwissRounds}</small></strong></div><div><span>最终成绩</span><strong className="small-score">{placement(event)}</strong></div></section>
-    {event.status === 'active' && played === event.plannedSwissRounds - 1 && <LastRoundPanel event={event} drawRate={drawRate} />}
+    {event.status === 'active' && event.advancement === 'undecided' && played === event.plannedSwissRounds - 1 && <LastRoundPanel event={event} drawRate={drawRate} />}
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">MATCH LOG</p><h3>对局记录</h3></div><span className="count-pill">{event.matches.length} 场</span></div><MatchList event={event} onEdit={onEditMatch} /></section>
-    {canAdd && <button className="button primary full-width add-match" onClick={onAddMatch}><Plus size={20} />记录 R{played + 1} Match</button>}
-    {event.status === 'active' && played > 0 && <button className="button quiet full-width" onClick={onEndEarly}>结束赛事 · 没出轮</button>}
-    {event.status === 'finished' && <div className="end-summary"><span>赛事已结束</span><strong>总战绩 {totalRecord(event)} · {placement(event)}</strong></div>}
+    {canAddSwiss && <button className="button primary full-width add-match" onClick={() => onAddMatch('swiss')}><Plus size={20} />记录 R{played + 1} Match</button>}
+    {event.status === 'active' && event.advancement === 'undecided' && played >= event.plannedSwissRounds && <AdvancementPanel key={`${event.id}-${event.cutSize}`} event={event} onAdvanced={onAdvanced} onOut={onEndEarly} />}
+    {canAddKnockout && nextStage && nextStage >= 2 && <button className="button primary full-width add-match" onClick={() => onAddMatch('knockout')}><Plus size={20} />记录 M{knockouts + 1} Match <small>· {stageName(nextStage)}</small></button>}
+    {event.status === 'active' && event.advancement === 'undecided' && played > 0 && played < event.plannedSwissRounds && <button className="button quiet full-width" onClick={onEndEarly}>提前结束 · 没出轮</button>}
+    {(event.matches.length > 0 || event.status === 'finished') && <TotalNote value={event.totalNote} onSave={onSaveNote} />}
+    {event.status === 'finished' && <><div className="end-summary"><span>赛事已结束</span><strong>总战绩 {totalRecord(event)} · {placement(event)}</strong></div><button className="button primary full-width" onClick={onReport}><FileText size={18} />生成战报</button></>}
     {onDelete && <button className="danger-link" onClick={onDelete}><Trash2 size={16} />删除这场赛事</button>}
   </div>
 }
@@ -219,10 +261,12 @@ export function App() {
   const [tab, setTab] = useState<Tab>('current')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingEvent, setEditingEvent] = useState<EventRecord | null>(null)
-  const [editingMatch, setEditingMatch] = useState<MatchRecord | 'new' | null>(null)
+  const [editingMatch, setEditingMatch] = useState<MatchRecord | 'new-swiss' | 'new-knockout' | null>(null)
+  const [reportEventId, setReportEventId] = useState<string | null>(null)
   const [drawRate, setDrawRate] = useState(.03)
   const active = events.find(event => event.status === 'active')
   const selected = events.find(event => event.id === selectedId)
+  const reportEvent = events.find(event => event.id === reportEventId)
   const viewed = tab === 'current' ? active : selected
   const suggestions = useMemo(() => [...new Set(events.flatMap(event => event.matches.map(match => match.opponentDeck)))].sort(), [events])
 
@@ -243,9 +287,31 @@ export function App() {
     if (!viewed) return
     const matches = viewed.matches.filter(match => match.id !== record.id)
     matches.push(record)
-    await saveEvent({ ...viewed, matches })
+    if (record.phase === 'knockout' && matchOutcome(record) === 'loss' && matches.some(match => match.phase === 'knockout' && match.round > record.round)) throw new Error('已有后续淘汰赛记录；请先删除后续 M 场次。')
+    const next = { ...viewed, matches }
+    if (record.phase === 'knockout') next.status = placement(next) === '淘汰赛进行中' ? 'active' : 'finished'
+    await saveEvent(next)
     await refresh()
     setEditingMatch(null)
+    if (next.status === 'finished') { setTab('history'); setSelectedId(next.id) }
+  }
+  async function handleMatchDelete(record: MatchRecord) {
+    if (!viewed) return
+    if (record.phase === 'knockout' && record.round !== countKnockout(viewed)) throw new Error('请先删除后面的淘汰赛 Match。')
+    const matches = viewed.matches.filter(match => match.id !== record.id).map(match => match.phase === record.phase && match.round > record.round ? { ...match, round: match.round - 1 } : match)
+    const next = { ...viewed, matches }
+    if (record.phase === 'knockout') next.status = 'active'
+    await saveEvent(next)
+    await refresh()
+    setEditingMatch(null)
+  }
+  async function handleAdvanced(event: EventRecord, stage: number) {
+    await saveEvent({ ...event, advancement: 'in', firstKnockoutStage: stage })
+    await refresh()
+  }
+  async function handleNote(event: EventRecord, note: string) {
+    await saveEvent({ ...event, totalNote: note })
+    await refresh()
   }
   async function handleEnd(event: EventRecord) {
     if (!confirm('结束这场赛事并记录为“没出轮”？之后仍可在历史比赛中编辑。')) return
@@ -266,12 +332,13 @@ export function App() {
     <main className="main-content">
       {loading ? <div className="loading-panel">正在读取本地赛事…</div> : error ? <div className="error-panel" role="alert">{error}<button className="button secondary" onClick={() => void refresh()}>重试</button></div> :
         editingEvent ? <EventForm initial={editingEvent} onSave={handleEventSave} onCancel={() => setEditingEvent(null)} /> :
-        tab === 'current' ? (active ? <EventDetail event={active} drawRate={drawRate} onEditEvent={() => setEditingEvent(active)} onEditMatch={setEditingMatch} onAddMatch={() => setEditingMatch('new')} onEndEarly={() => void handleEnd(active)} /> : <EventForm onSave={handleEventSave} />) :
+        tab === 'current' ? (active ? <EventDetail event={active} drawRate={drawRate} onEditEvent={() => setEditingEvent(active)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(active)} onAdvanced={stage => void handleAdvanced(active, stage)} onSaveNote={note => handleNote(active, note)} onReport={() => setReportEventId(active.id)} /> : <EventForm onSave={handleEventSave} />) :
         tab === 'calculator' ? <CalculatorPage active={active} savedDrawRate={drawRate} onDrawRateChange={updateDrawRate} /> :
-        selected ? <EventDetail event={selected} drawRate={drawRate} onBack={() => setSelectedId(null)} onEditEvent={() => setEditingEvent(selected)} onEditMatch={setEditingMatch} onAddMatch={() => setEditingMatch('new')} onEndEarly={() => void handleEnd(selected)} onDelete={() => void handleDelete(selected)} /> :
+        selected ? <EventDetail event={selected} drawRate={drawRate} onBack={() => setSelectedId(null)} onEditEvent={() => setEditingEvent(selected)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(selected)} onAdvanced={stage => void handleAdvanced(selected, stage)} onSaveNote={note => handleNote(selected, note)} onReport={() => setReportEventId(selected.id)} onDelete={() => void handleDelete(selected)} /> :
         <div className="page-stack"><div className="intro-block history-intro"><p className="eyebrow">YOUR ARCHIVE</p><h2>历史比赛</h2><p>每一场赛事都留在设备里，随时查看和修改。</p></div>{events.length ? <div className="history-list">{events.map(event => <button key={event.id} className="history-card" onClick={() => setSelectedId(event.id)}><span>{formatDate(event.date)} · {event.participants} 人</span><div><strong>{event.name}</strong><ChevronRight size={20} /></div><p>{event.ownDeck} · {totalRecord(event)} · {placement(event)}</p></button>)}</div> : <div className="empty-panel"><History size={25} /><strong>还没有历史比赛</strong><p>创建赛事后，记录会保存在这台设备上。</p></div>}</div>}
     </main>
     <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'calculator' ? 'active' : ''} onClick={() => { setTab('calculator'); setSelectedId(null); setEditingEvent(null) }}><Calculator size={21} /><span>计算器</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button></nav>
-    {editingMatch && viewed && <MatchEditor event={viewed} match={editingMatch === 'new' ? undefined : editingMatch} suggestions={suggestions} onSave={handleMatchSave} onClose={() => setEditingMatch(null)} />}
+    {editingMatch && viewed && <MatchEditor event={viewed} match={typeof editingMatch === 'string' ? undefined : editingMatch} newPhase={editingMatch === 'new-knockout' ? 'knockout' : 'swiss'} suggestions={suggestions} onSave={handleMatchSave} onDelete={handleMatchDelete} onClose={() => setEditingMatch(null)} />}
+    {reportEvent && <ReportSheet event={reportEvent} onClose={() => setReportEventId(null)} />}
   </div>
 }
