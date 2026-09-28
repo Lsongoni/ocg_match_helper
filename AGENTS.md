@@ -32,4 +32,5 @@
 - ZIP 格式为 `data.json` 加 `images/`，schemaVersion 为 1；恢复先完整解析并预览，再在一个 IndexedDB 事务中整体替换。
 - Phase 5 本地实现已完成：PWA Manifest、图标、Service Worker 预缓存、安全区域与键盘布局、GitHub Pages Actions 工作流。
 - 已用 Pages 子路径的生产构建在 Chrome 断网模式验证：离线重载、IndexedDB 赛事和 Match 保存、Web Worker 10 万次模拟均可用。
-- 发布和真机验收待完成：当前 `gh` 的 GitHub 凭据无效；发布后需要在 iPhone Safari 和添加到主屏幕模式核对安全区域、键盘、照片选择及 Files 备份恢复。
+- 已发布到公开仓库 `Lsongoni/ocg_match_helper`，GitHub Actions 部署成功，线上地址为 `https://lsongoni.github.io/ocg_match_helper/`。
+- 真机验收待完成：在 iPhone Safari 和添加到主屏幕模式核对安全区域、键盘、照片选择、离线启动及 Files 备份恢复。桌面 Chrome 的自动化文件选择受浏览器扩展权限限制，照片上传尚未完成浏览器端验收。

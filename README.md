@@ -2,6 +2,8 @@
 
 面向 iPhone 的本地优先游戏王 OCG 比赛记录 PWA。赛事数据保存在设备的 IndexedDB；应用无需服务器或登录。
 
+在线使用：[https://lsongoni.github.io/ocg_match_helper/](https://lsongoni.github.io/ocg_match_helper/)
+
 ## 本地开发
 
 ```bash
