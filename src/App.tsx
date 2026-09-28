@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, Calculator, ChevronRight, ClipboardList, FileText, History, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
+import { ArrowLeft, BarChart3, CalendarDays, Calculator, ChevronRight, ClipboardList, FileText, History, Pencil, Plus, Save, Settings2, Trash2, X } from 'lucide-react'
 import { deleteEvent, getSetting, listEvents, saveEvent, setSetting } from './db'
 import { CalculatorPage, LastRoundPanel } from './Calculator'
 import { ReportSheet } from './ReportSheet'
+import { PhotoPanel } from './PhotoPanel'
+import { SettingsPage } from './SettingsPage'
+import { StatsPage } from './StatsPage'
+import { deliverBackup } from './backup'
+import { shouldRemindBackup, snoozeDate } from './backupReminder'
 import {
   countKnockout, countSwiss, formatDate, inferredNextTurn, knockoutStages, localToday,
   makeId, matchLabel, matchOutcome, placement, recommendedRounds, sortedMatches,
@@ -10,7 +15,7 @@ import {
   type EventRecord, type GameRecord, type GameResult, type MatchPhase, type MatchRecord, type Turn,
 } from './domain'
 
-type Tab = 'current' | 'calculator' | 'history'
+type Tab = 'current' | 'calculator' | 'history' | 'stats' | 'settings'
 type DraftGame = Omit<GameRecord, 'turn'> & { turn: Turn | null }
 
 const presets = ['OO', 'OXO', 'XOO', 'XX', 'OXX', 'XOX']
@@ -249,9 +254,14 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
     {canAddKnockout && nextStage && nextStage >= 2 && <button className="button primary full-width add-match" onClick={() => onAddMatch('knockout')}><Plus size={20} />记录 M{knockouts + 1} Match <small>· {stageName(nextStage)}</small></button>}
     {event.status === 'active' && event.advancement === 'undecided' && played > 0 && played < event.plannedSwissRounds && <button className="button quiet full-width" onClick={onEndEarly}>提前结束 · 没出轮</button>}
     {(event.matches.length > 0 || event.status === 'finished') && <TotalNote value={event.totalNote} onSave={onSaveNote} />}
+    {event.status === 'finished' && <PhotoPanel eventId={event.id} />}
     {event.status === 'finished' && <><div className="end-summary"><span>赛事已结束</span><strong>总战绩 {totalRecord(event)} · {placement(event)}</strong></div><button className="button primary full-width" onClick={onReport}><FileText size={18} />生成战报</button></>}
     {onDelete && <button className="danger-link" onClick={onDelete}><Trash2 size={16} />删除这场赛事</button>}
   </div>
+}
+
+function BackupReminder({ onBackup, onLater, busy, error }: { onBackup: () => void; onLater: () => void; busy: boolean; error: string }) {
+  return <div className="sheet-backdrop reminder-backdrop"><section className="reminder-dialog" role="dialog" aria-modal="true" aria-label="备份提醒"><p className="eyebrow">BACKUP REMINDER</p><h2>记得备份比赛记录</h2><p>距离首次记录或上次备份已超过 30 天。建议保存完整 ZIP，避免换手机或浏览器数据丢失。</p>{error && <p className="error-message" role="alert">{error}</p>}<button className="button primary full-width" onClick={onBackup} disabled={busy}>{busy ? '正在生成备份…' : '立即备份'}</button><button className="button quiet full-width" onClick={onLater} disabled={busy}>稍后提醒</button></section></div>
 }
 
 export function App() {
@@ -264,6 +274,9 @@ export function App() {
   const [editingMatch, setEditingMatch] = useState<MatchRecord | 'new-swiss' | 'new-knockout' | null>(null)
   const [reportEventId, setReportEventId] = useState<string | null>(null)
   const [drawRate, setDrawRate] = useState(.03)
+  const [backupReminder, setBackupReminder] = useState(false)
+  const [backupBusy, setBackupBusy] = useState(false)
+  const [backupError, setBackupError] = useState('')
   const active = events.find(event => event.status === 'active')
   const selected = events.find(event => event.id === selectedId)
   const reportEvent = events.find(event => event.id === reportEventId)
@@ -273,8 +286,26 @@ export function App() {
   async function refresh() {
     try { setEvents(await listEvents()); setError('') } catch { setError('无法读取本地记录，请检查浏览器存储权限。') } finally { setLoading(false) }
   }
-  useEffect(() => { void refresh(); void getSetting('drawRate', .03).then(setDrawRate) }, [])
+  useEffect(() => {
+    void refresh()
+    void Promise.all([getSetting('drawRate', .03), getSetting<string | null>('lastBackupAt', null), getSetting<string | null>('backupReminderSnoozeUntil', null), listEvents()])
+      .then(([rate, last, snooze, all]) => { setDrawRate(rate); setBackupReminder(shouldRemindBackup(all, last, snooze)) })
+      .catch(() => {})
+  }, [])
   function updateDrawRate(rate: number) { setDrawRate(rate); void setSetting('drawRate', rate) }
+  async function remindBackup() {
+    setBackupBusy(true); setBackupError('')
+    try { const exportedAt = await deliverBackup(); if (exportedAt) setBackupReminder(false) }
+    catch (error) { setBackupError(error instanceof Error ? error.message : '备份失败，请重试。') }
+    finally { setBackupBusy(false) }
+  }
+  async function remindLater() {
+    try { await setSetting('backupReminderSnoozeUntil', snoozeDate()); setBackupReminder(false) }
+    catch { setBackupError('无法保存提醒设置，请检查设备存储空间。') }
+  }
+  async function afterRestore() {
+    await refresh(); setDrawRate(await getSetting('drawRate', .03)); setBackupReminder(false); setSelectedId(null); setTab('history')
+  }
 
   async function handleEventSave(record: EventRecord) {
     await saveEvent(record)
@@ -334,11 +365,14 @@ export function App() {
         editingEvent ? <EventForm initial={editingEvent} onSave={handleEventSave} onCancel={() => setEditingEvent(null)} /> :
         tab === 'current' ? (active ? <EventDetail event={active} drawRate={drawRate} onEditEvent={() => setEditingEvent(active)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(active)} onAdvanced={stage => void handleAdvanced(active, stage)} onSaveNote={note => handleNote(active, note)} onReport={() => setReportEventId(active.id)} /> : <EventForm onSave={handleEventSave} />) :
         tab === 'calculator' ? <CalculatorPage active={active} savedDrawRate={drawRate} onDrawRateChange={updateDrawRate} /> :
+        tab === 'stats' ? <StatsPage events={events} /> :
+        tab === 'settings' ? <SettingsPage onRestored={afterRestore} onBackupSaved={() => setBackupReminder(false)} /> :
         selected ? <EventDetail event={selected} drawRate={drawRate} onBack={() => setSelectedId(null)} onEditEvent={() => setEditingEvent(selected)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(selected)} onAdvanced={stage => void handleAdvanced(selected, stage)} onSaveNote={note => handleNote(selected, note)} onReport={() => setReportEventId(selected.id)} onDelete={() => void handleDelete(selected)} /> :
         <div className="page-stack"><div className="intro-block history-intro"><p className="eyebrow">YOUR ARCHIVE</p><h2>历史比赛</h2><p>每一场赛事都留在设备里，随时查看和修改。</p></div>{events.length ? <div className="history-list">{events.map(event => <button key={event.id} className="history-card" onClick={() => setSelectedId(event.id)}><span>{formatDate(event.date)} · {event.participants} 人</span><div><strong>{event.name}</strong><ChevronRight size={20} /></div><p>{event.ownDeck} · {totalRecord(event)} · {placement(event)}</p></button>)}</div> : <div className="empty-panel"><History size={25} /><strong>还没有历史比赛</strong><p>创建赛事后，记录会保存在这台设备上。</p></div>}</div>}
     </main>
-    <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'calculator' ? 'active' : ''} onClick={() => { setTab('calculator'); setSelectedId(null); setEditingEvent(null) }}><Calculator size={21} /><span>计算器</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button></nav>
+    <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'calculator' ? 'active' : ''} onClick={() => { setTab('calculator'); setSelectedId(null); setEditingEvent(null) }}><Calculator size={21} /><span>计算器</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button><button className={tab === 'stats' ? 'active' : ''} onClick={() => { setTab('stats'); setSelectedId(null); setEditingEvent(null) }}><BarChart3 size={21} /><span>统计</span></button><button className={tab === 'settings' ? 'active' : ''} onClick={() => { setTab('settings'); setSelectedId(null); setEditingEvent(null) }}><Settings2 size={21} /><span>设置</span></button></nav>
     {editingMatch && viewed && <MatchEditor event={viewed} match={typeof editingMatch === 'string' ? undefined : editingMatch} newPhase={editingMatch === 'new-knockout' ? 'knockout' : 'swiss'} suggestions={suggestions} onSave={handleMatchSave} onDelete={handleMatchDelete} onClose={() => setEditingMatch(null)} />}
     {reportEvent && <ReportSheet event={reportEvent} onClose={() => setReportEventId(null)} />}
+    {backupReminder && <BackupReminder onBackup={() => void remindBackup()} onLater={() => void remindLater()} busy={backupBusy} error={backupError} />}
   </div>
 }
