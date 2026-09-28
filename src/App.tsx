@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, ChevronRight, ClipboardList, History, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
-import { deleteEvent, listEvents, saveEvent } from './db'
+import { ArrowLeft, CalendarDays, Calculator, ChevronRight, ClipboardList, History, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
+import { deleteEvent, getSetting, listEvents, saveEvent, setSetting } from './db'
+import { CalculatorPage, LastRoundPanel } from './Calculator'
 import {
   countSwiss, formatDate, inferredNextTurn, localToday, makeId, matchLabel,
   matchOutcome, placement, recommendedRounds, sortedMatches, swissRecord, totalRecord,
   type EventRecord, type GameRecord, type GameResult, type MatchRecord, type Turn,
 } from './domain'
 
-type Tab = 'current' | 'history'
+type Tab = 'current' | 'calculator' | 'history'
 type DraftGame = Omit<GameRecord, 'turn'> & { turn: Turn | null }
 
 const presets = ['OO', 'OXO', 'XOO', 'XX', 'OXX', 'XOX']
@@ -182,7 +183,7 @@ function MatchList({ event, onEdit }: { event: EventRecord; onEdit: (match: Matc
   </button>)}</div>
 }
 
-function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEndEarly, onDelete }: {
+function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEndEarly, onDelete, drawRate }: {
   event: EventRecord
   onBack?: () => void
   onEditEvent: () => void
@@ -190,6 +191,7 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
   onAddMatch: () => void
   onEndEarly: () => void
   onDelete?: () => void
+  drawRate: number
 }) {
   const played = countSwiss(event)
   const canAdd = event.status === 'active' && played < event.plannedSwissRounds
@@ -201,6 +203,7 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
       <div className="hero-deck"><span>使用卡组</span><strong>{event.ownDeck}</strong></div>
     </section>
     <section className="score-strip"><div><span>瑞士战绩</span><strong>{swissRecord(event)}</strong></div><div><span>已完成轮数</span><strong>{played} <small>/ {event.plannedSwissRounds}</small></strong></div><div><span>最终成绩</span><strong className="small-score">{placement(event)}</strong></div></section>
+    {event.status === 'active' && played === event.plannedSwissRounds - 1 && <LastRoundPanel event={event} drawRate={drawRate} />}
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">MATCH LOG</p><h3>对局记录</h3></div><span className="count-pill">{event.matches.length} 场</span></div><MatchList event={event} onEdit={onEditMatch} /></section>
     {canAdd && <button className="button primary full-width add-match" onClick={onAddMatch}><Plus size={20} />记录 R{played + 1} Match</button>}
     {event.status === 'active' && played > 0 && <button className="button quiet full-width" onClick={onEndEarly}>结束赛事 · 没出轮</button>}
@@ -217,6 +220,7 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingEvent, setEditingEvent] = useState<EventRecord | null>(null)
   const [editingMatch, setEditingMatch] = useState<MatchRecord | 'new' | null>(null)
+  const [drawRate, setDrawRate] = useState(.03)
   const active = events.find(event => event.status === 'active')
   const selected = events.find(event => event.id === selectedId)
   const viewed = tab === 'current' ? active : selected
@@ -225,7 +229,8 @@ export function App() {
   async function refresh() {
     try { setEvents(await listEvents()); setError('') } catch { setError('无法读取本地记录，请检查浏览器存储权限。') } finally { setLoading(false) }
   }
-  useEffect(() => { void refresh() }, [])
+  useEffect(() => { void refresh(); void getSetting('drawRate', .03).then(setDrawRate) }, [])
+  function updateDrawRate(rate: number) { setDrawRate(rate); void setSetting('drawRate', rate) }
 
   async function handleEventSave(record: EventRecord) {
     await saveEvent(record)
@@ -261,11 +266,12 @@ export function App() {
     <main className="main-content">
       {loading ? <div className="loading-panel">正在读取本地赛事…</div> : error ? <div className="error-panel" role="alert">{error}<button className="button secondary" onClick={() => void refresh()}>重试</button></div> :
         editingEvent ? <EventForm initial={editingEvent} onSave={handleEventSave} onCancel={() => setEditingEvent(null)} /> :
-        tab === 'current' ? (active ? <EventDetail event={active} onEditEvent={() => setEditingEvent(active)} onEditMatch={setEditingMatch} onAddMatch={() => setEditingMatch('new')} onEndEarly={() => void handleEnd(active)} /> : <EventForm onSave={handleEventSave} />) :
-        selected ? <EventDetail event={selected} onBack={() => setSelectedId(null)} onEditEvent={() => setEditingEvent(selected)} onEditMatch={setEditingMatch} onAddMatch={() => setEditingMatch('new')} onEndEarly={() => void handleEnd(selected)} onDelete={() => void handleDelete(selected)} /> :
+        tab === 'current' ? (active ? <EventDetail event={active} drawRate={drawRate} onEditEvent={() => setEditingEvent(active)} onEditMatch={setEditingMatch} onAddMatch={() => setEditingMatch('new')} onEndEarly={() => void handleEnd(active)} /> : <EventForm onSave={handleEventSave} />) :
+        tab === 'calculator' ? <CalculatorPage active={active} savedDrawRate={drawRate} onDrawRateChange={updateDrawRate} /> :
+        selected ? <EventDetail event={selected} drawRate={drawRate} onBack={() => setSelectedId(null)} onEditEvent={() => setEditingEvent(selected)} onEditMatch={setEditingMatch} onAddMatch={() => setEditingMatch('new')} onEndEarly={() => void handleEnd(selected)} onDelete={() => void handleDelete(selected)} /> :
         <div className="page-stack"><div className="intro-block history-intro"><p className="eyebrow">YOUR ARCHIVE</p><h2>历史比赛</h2><p>每一场赛事都留在设备里，随时查看和修改。</p></div>{events.length ? <div className="history-list">{events.map(event => <button key={event.id} className="history-card" onClick={() => setSelectedId(event.id)}><span>{formatDate(event.date)} · {event.participants} 人</span><div><strong>{event.name}</strong><ChevronRight size={20} /></div><p>{event.ownDeck} · {totalRecord(event)} · {placement(event)}</p></button>)}</div> : <div className="empty-panel"><History size={25} /><strong>还没有历史比赛</strong><p>创建赛事后，记录会保存在这台设备上。</p></div>}</div>}
     </main>
-    <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button></nav>
+    <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'calculator' ? 'active' : ''} onClick={() => { setTab('calculator'); setSelectedId(null); setEditingEvent(null) }}><Calculator size={21} /><span>计算器</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button></nav>
     {editingMatch && viewed && <MatchEditor event={viewed} match={editingMatch === 'new' ? undefined : editingMatch} suggestions={suggestions} onSave={handleMatchSave} onClose={() => setEditingMatch(null)} />}
   </div>
 }
