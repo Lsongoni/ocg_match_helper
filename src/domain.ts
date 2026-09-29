@@ -1,6 +1,7 @@
 export type GameResult = 'O' | 'X' | 'D'
 export type Turn = 'first' | 'second'
 export type MatchPhase = 'swiss' | 'knockout'
+export type MatchKind = 'normal' | 'bye' | 'no-show'
 export type MatchOutcome = 'win' | 'draw' | 'loss'
 
 export interface GameRecord {
@@ -15,6 +16,7 @@ export interface MatchRecord {
   id: string
   phase: MatchPhase
   round: number
+  kind?: MatchKind
   opponentDeck: string
   games: GameRecord[]
 }
@@ -44,19 +46,29 @@ export function localToday(): string {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10)
 }
 
-export function recommendedRounds(participants: number): number {
-  return Math.max(1, Math.ceil(Math.log2(Math.max(2, participants))))
-}
-
 export function countSwiss(event: EventRecord): number {
   return event.matches.filter(match => match.phase === 'swiss').length
 }
 
 export function countKnockout(event: EventRecord): number {
-  return event.matches.filter(match => match.phase === 'knockout').length
+  return visibleMatches(event).filter(match => match.phase === 'knockout').length
 }
 
-export function matchOutcome(match: Pick<MatchRecord, 'games'>): MatchOutcome {
+export function matchKind(match: Pick<MatchRecord, 'kind'>): MatchKind {
+  return match.kind ?? 'normal'
+}
+
+export function matchKindLabel(match: Pick<MatchRecord, 'kind'>): string | null {
+  const kind = matchKind(match)
+  return kind === 'bye' ? '轮空' : kind === 'no-show' ? '对手未到' : null
+}
+
+export function visibleMatches(event: EventRecord): MatchRecord[] {
+  return event.advancement === 'out' ? event.matches.filter(match => match.phase === 'swiss') : event.matches
+}
+
+export function matchOutcome(match: Pick<MatchRecord, 'games' | 'kind'>): MatchOutcome {
+  if (matchKind(match) !== 'normal') return 'win'
   const wins = match.games.filter(game => game.result === 'O').length
   const losses = match.games.filter(game => game.result === 'X').length
   return wins > losses ? 'win' : losses > wins ? 'loss' : 'draw'
@@ -89,7 +101,7 @@ export function swissRecord(event: EventRecord): string {
 }
 
 export function totalRecord(event: EventRecord): string {
-  return formatRecord(recordOf(event.matches))
+  return formatRecord(recordOf(visibleMatches(event)))
 }
 
 export function stageName(stage: number): string {
@@ -124,7 +136,7 @@ export function formatDate(date: string): string {
 }
 
 export function sortedMatches(event: EventRecord): MatchRecord[] {
-  return [...event.matches].sort((a, b) => {
+  return [...visibleMatches(event)].sort((a, b) => {
     if (a.phase !== b.phase) return a.phase === 'swiss' ? -1 : 1
     return a.round - b.round
   })

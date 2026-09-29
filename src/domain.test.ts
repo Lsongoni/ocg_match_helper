@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { countSwiss, formatRecord, inferredNextTurn, matchOutcome, placement, recommendedRounds, recordOf, type EventRecord, type MatchRecord } from './domain'
+import { countSwiss, formatRecord, inferredNextTurn, matchOutcome, placement, recordOf, totalRecord, visibleMatches, type EventRecord, type MatchRecord } from './domain'
+import { recommendedRounds } from './swissRounds'
 
 function match(phase: 'swiss' | 'knockout', round: number, sequence: string): MatchRecord {
   return {
@@ -33,7 +34,25 @@ describe('赛事领域规则', () => {
 
   it('区分计划与已打瑞士轮数，推荐轮数可手动覆盖', () => {
     expect(recommendedRounds(64)).toBe(6)
+    expect(recommendedRounds(20)).toBe(5)
     expect(countSwiss(event([match('swiss', 1, 'OO'), match('swiss', 2, 'XX')]))).toBe(2)
+  })
+
+  it('轮空与对手未到按 Match 胜计分，但不伪造 Game', () => {
+    const bye: MatchRecord = { id: 'bye', phase: 'swiss', round: 1, kind: 'bye', opponentDeck: '', games: [] }
+    const noShow: MatchRecord = { id: 'no-show', phase: 'swiss', round: 2, kind: 'no-show', opponentDeck: '', games: [] }
+    expect(matchOutcome(bye)).toBe('win')
+    expect(formatRecord(recordOf([bye, noShow]))).toBe('2-0')
+  })
+
+  it('改为没出轮时隐藏淘汰赛记录，改回后可恢复', () => {
+    const swiss = match('swiss', 1, 'OO')
+    const knockout = match('knockout', 1, 'XX')
+    const advanced = event([swiss, knockout], 8)
+    const out: EventRecord = { ...advanced, advancement: 'out' }
+    expect(visibleMatches(out)).toEqual([swiss])
+    expect(totalRecord(out)).toBe('1-0')
+    expect(visibleMatches({ ...out, advancement: 'in' })).toEqual([swiss, knockout])
   })
 
   it('按 M 序列推导淘汰赛名次', () => {

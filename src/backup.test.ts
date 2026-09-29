@@ -42,4 +42,13 @@ describe('完整备份', () => {
     const broken = await zip.generateAsync({ type: 'blob' })
     await expect(loadBackup(broken)).rejects.toThrow('备份缺少图片')
   })
+  it('新类型的无 Game 瑞士轮 Match 可完整备份恢复', async () => {
+    const special = { ...event, matches: [
+      ...event.matches,
+      { id: 'bye', phase: 'swiss' as const, round: 2, kind: 'bye' as const, opponentDeck: '', games: [] },
+    ] }
+    const backup = await buildBackup([special], [], [], '2026-09-28T02:00:00.000Z')
+    const loaded = await loadBackup(backup)
+    expect(loaded.events[0].matches[1]).toMatchObject({ kind: 'bye', games: [] })
+  })
 })

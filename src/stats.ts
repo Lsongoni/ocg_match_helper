@@ -1,4 +1,4 @@
-import { matchOutcome, placement, type EventRecord, type GameRecord, type MatchRecord } from './domain'
+import { matchKind, matchOutcome, placement, visibleMatches, type EventRecord, type GameRecord, type MatchRecord } from './domain'
 
 export interface WinLossDraw { wins: number; losses: number; draws: number; total: number; rate: number }
 export interface GroupedRecord { name: string; record: WinLossDraw }
@@ -52,13 +52,14 @@ export function calculateStats(events: EventRecord[]): Statistics {
   for (const event of events) {
     if (event.advancement === 'in') stats.topCount += 1
     if (placement(event) === '冠军') stats.championCount += 1
-    for (const match of event.matches) {
+    for (const match of visibleMatches(event)) {
       const outcome = matchOutcome(match)
       stats.matchCount += 1
       if (match.phase === 'swiss') stats.swissMatchCount += 1
       else stats.knockoutMatchCount += 1
       add(stats.matches, outcome)
       group(own, event.ownDeck, match)
+      if (matchKind(match) !== 'normal') continue
       group(opponents, match.opponentDeck, match)
       add(match.games[0].turn === 'first' ? stats.firstTurnMatches : stats.secondTurnMatches, outcome)
       match.games.forEach((game, index) => {

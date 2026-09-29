@@ -34,4 +34,18 @@ describe('自动统计', () => {
     expect(stats.opponentDecks[0].name).toBe('M∀LICE')
     expect(stats.gamePositions[2]).toMatchObject({ wins: 1, total: 1 })
   })
+  it('轮空计入 Match 胜场，排除 Game、先后攻与对手卡组统计', () => {
+    const bye = { id: 'bye', phase: 'swiss' as const, round: 3, kind: 'bye' as const, opponentDeck: '', games: [] }
+    const hiddenKo = { id: 'ko', phase: 'knockout' as const, round: 1, opponentDeck: '青眼', games: [
+      { id: 'kg1', result: 'X' as const, turn: 'first' as const, manualTurn: true, note: '' },
+    ] }
+    const stats = calculateStats([{ ...event, matches: [...event.matches, bye, hiddenKo] }])
+    expect(stats.matches).toMatchObject({ wins: 2, draws: 1, total: 3 })
+    expect(stats.swissMatchCount).toBe(3)
+    expect(stats.knockoutMatchCount).toBe(0)
+    expect(stats.games.total).toBe(5)
+    expect(stats.firstTurnMatches.total + stats.secondTurnMatches.total).toBe(2)
+    expect(stats.opponentDecks).toHaveLength(1)
+    expect(stats.ownDecks[0].record.total).toBe(3)
+  })
 })

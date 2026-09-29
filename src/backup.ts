@@ -24,9 +24,12 @@ function validGame(value: unknown): value is GameRecord {
     ['first', 'second'].includes(String(value.turn)) && typeof value.note === 'string' && typeof value.manualTurn === 'boolean'
 }
 function validMatch(value: unknown): value is MatchRecord {
-  return object(value) && typeof value.id === 'string' && ['swiss', 'knockout'].includes(String(value.phase)) &&
-    Number.isSafeInteger(value.round) && Number(value.round) >= 1 && typeof value.opponentDeck === 'string' &&
-    Array.isArray(value.games) && value.games.length > 0 && value.games.every(validGame)
+  if (!object(value) || typeof value.id !== 'string' || !['swiss', 'knockout'].includes(String(value.phase)) ||
+    !Number.isSafeInteger(value.round) || Number(value.round) < 1 || typeof value.opponentDeck !== 'string' ||
+    !Array.isArray(value.games)) return false
+  const kind = value.kind ?? 'normal'
+  if (!['normal', 'bye', 'no-show'].includes(String(kind))) return false
+  return kind === 'normal' ? value.games.length > 0 && value.games.every(validGame) : value.phase === 'swiss' && value.games.length === 0
 }
 function validEvent(value: unknown): value is EventRecord {
   return object(value) && typeof value.id === 'string' && typeof value.name === 'string' &&

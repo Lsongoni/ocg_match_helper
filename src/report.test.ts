@@ -29,6 +29,17 @@ describe('战报', () => {
     expect(text).toContain('G3：反杀')
     expect(text).toContain('总备注：\n今天状态不错。')
   })
+  it('轮空和对手未到按实际类型输出，不生成虚构小局', () => {
+    const withSpecial = { ...event, matches: [
+      ...event.matches,
+      { id: 'bye', phase: 'swiss' as const, round: 2, kind: 'bye' as const, opponentDeck: '', games: [] },
+      { id: 'absent', phase: 'swiss' as const, round: 3, kind: 'no-show' as const, opponentDeck: '', games: [] },
+    ] }
+    const text = generateReport(withSpecial, true)
+    expect(text).toContain('R2 轮空\nR3 对手未到')
+    expect(text).not.toContain('R2  OO')
+    expect(text).toContain('瑞士战绩：3-0')
+  })
   it('导出文件名去除非法字符', () => {
     expect(reportFilename({ ...event, name: 'A/B:杯' })).toBe('2026-10-03-A_B_杯.txt')
   })

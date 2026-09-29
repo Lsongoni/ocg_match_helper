@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Calculator, Info, RotateCcw, X } from 'lucide-react'
-import { countSwiss, formatRecord, recordOf, recommendedRounds, type EventRecord } from './domain'
+import { countSwiss, formatRecord, recordOf, type EventRecord } from './domain'
+import { recommendedRounds } from './swissRounds'
 import { findRecord, validateSimulationInput, type SimulationInput, type SimulationResult, type SimulationRow } from './simulation'
 
 const cache = new Map<string, SimulationResult>()
