@@ -87,7 +87,7 @@ function EventForm({ initial, onSave, onCancel }: {
     </div>
     <Field label="赛事名称"><input value={name} onChange={e => setName(e.target.value)} placeholder="例如：周末店赛" /></Field>
     <div className="form-grid event-form-grid">
-      <Field label="比赛日期"><input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
+      <Field label="比赛日期"><span className="event-date-input"><span aria-hidden="true">{formatDate(date)}</span><input type="date" value={date} onChange={e => setDate(e.target.value)} /></span></Field>
       <Field label="参赛人数"><input inputMode="numeric" type="number" min="2" value={participants} onChange={e => { const next = e.target.value; setParticipants(next); const people = Number(next); if (people >= 2 && Number(cutSize) > people) setCutSize(String(Math.max(2, 2 ** Math.floor(Math.log2(people))))) }} placeholder="例如 64" /></Field>
     </div>
     <div className="field">
