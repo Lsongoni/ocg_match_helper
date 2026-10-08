@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight, Search } from 'lucide-react'
 import { cardName, searchCards, type CardInfo } from './cardSearch'
+import { CardFilterSearch } from './CardFilterSearch'
 
 function CardDetail({ card, onBack }: { card: CardInfo; onBack: () => void }) {
   const [imageFailed, setImageFailed] = useState(false)
@@ -20,6 +21,7 @@ function CardDetail({ card, onBack }: { card: CardInfo; onBack: () => void }) {
 
 export function CardSearchPage() {
   const [input, setInput] = useState('')
+  const [mode, setMode] = useState<'keyword' | 'filter'>('keyword')
   const [query, setQuery] = useState('')
   const [cards, setCards] = useState<CardInfo[]>([])
   const [next, setNext] = useState(0)
@@ -29,6 +31,12 @@ export function CardSearchPage() {
   const [selected, setSelected] = useState<CardInfo | null>(null)
   const [online, setOnline] = useState(navigator.onLine)
   const request = useRef<AbortController | null>(null)
+  const resultScroll = useRef<number | null>(null)
+  function showCard(card: CardInfo) { resultScroll.current = window.scrollY; setSelected(card) }
+  useEffect(() => {
+    if (selected) window.scrollTo(0, 0)
+    else if (resultScroll.current !== null) { window.scrollTo(0, resultScroll.current); resultScroll.current = null }
+  }, [selected])
 
   useEffect(() => {
     const updateOnline = () => setOnline(navigator.onLine)
@@ -69,22 +77,25 @@ export function CardSearchPage() {
     }
   }
 
-  if (selected) return <CardDetail key={selected.cid} card={selected} onBack={() => setSelected(null)} />
-  return <div className="page-stack">
+  return <>{selected && <CardDetail key={selected.cid} card={selected} onBack={() => setSelected(null)} />}<div hidden={!!selected}><div className="page-stack">
     <div className="intro-block"><p className="eyebrow">ONLINE CARD SEARCH</p><h2>在线卡查</h2><p>输入卡名、效果关键词或卡片密码。需要联网使用。</p></div>
+    <div className="segmented" aria-label="卡查方式"><button className={mode === 'keyword' ? 'selected' : ''} aria-pressed={mode === 'keyword'} onClick={() => setMode('keyword')}>关键词搜索</button><button className={mode === 'filter' ? 'selected' : ''} aria-pressed={mode === 'filter'} onClick={() => setMode('filter')}>条件筛选</button></div>
+    {!online && <p className="error-message" role="status">当前处于离线状态，卡查需要联网。比赛记录等功能仍可离线使用。</p>}
+    <div hidden={mode !== 'filter'}><CardFilterSearch onSelect={showCard} /></div>
+    <div hidden={mode !== 'keyword'} className="keyword-search">
     <form className="card-search-form" onSubmit={event => { event.preventDefault(); void load(input) }}>
       <label className="field"><span className="field-label">搜索卡片</span><input type="search" value={input} onChange={event => setInput(event.target.value)} placeholder="例如：灰流丽、青眼白龙" enterKeyHint="search" maxLength={200} /></label>
       <button className="button primary" type="submit" disabled={!input.trim()}><Search size={18} />搜索</button>
     </form>
-    {!online && <p className="error-message" role="status">当前处于离线状态，卡查需要联网。比赛记录等功能仍可离线使用。</p>}
     {error && <p className="error-message" role="alert">{error}</p>}
     <div aria-live="polite" aria-busy={busy}>
-      {cards.length > 0 && <><p className="subtle-note card-results-label">“{query}” · 已显示 {cards.length} 张</p><div className="card-results">{cards.map(card => <button type="button" className="card-result" key={card.cid} onClick={() => setSelected(card)}><div><strong>{cardName(card)}</strong><p>{card.text.types}</p></div><ChevronRight size={19} /></button>)}</div></>}
+      {cards.length > 0 && <><p className="subtle-note card-results-label">“{query}” · 已显示 {cards.length} 张</p><div className="card-results">{cards.map(card => <button type="button" className="card-result" key={card.cid} onClick={() => showCard(card)}><div><strong>{cardName(card)}</strong><p>{card.text.types}</p></div><ChevronRight size={19} /></button>)}</div></>}
       {busy && <p className="loading-panel" role="status">正在搜索…</p>}
       {searched && !cards.length && !busy && <div className="empty-panel"><Search size={25} /><strong>没有找到相关卡片</strong><p>试试其他卡名、关键词或卡片密码。</p></div>}
       {!searched && !busy && !error && <div className="empty-panel"><Search size={25} /><strong>查一下卡片效果</strong><p>点击结果查看卡片文字和卡图。</p></div>}
     </div>
     {next > 0 && <button className="button secondary full-width" disabled={busy} onClick={() => void load(query, next)}>加载更多</button>}
-    <p className="subtle-note">资料来源：<a href="https://ygocdb.com/api" target="_blank" rel="noopener noreferrer">百鸽</a>。按需联网查询，不下载离线卡库。</p>
-  </div>
+    </div>
+    <p className="subtle-note">资料来源：<a href="https://ygocdb.com/api" target="_blank" rel="noopener noreferrer">百鸽</a>。</p>
+  </div></div></>
 }

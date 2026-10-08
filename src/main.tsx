@@ -20,7 +20,7 @@ function adjustForKeyboard() {
   const viewport = window.visualViewport
   const gap = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0
   const active = document.activeElement
-  const focused = active instanceof HTMLElement && active.matches('input, textarea, select')
+  const focused = active instanceof HTMLElement && active.matches('input:not([type="checkbox"]):not([type="radio"]), textarea, select')
   document.body.classList.toggle('form-focused', focused && window.innerWidth < 700)
   document.documentElement.style.setProperty('--keyboard-offset', `${gap}px`)
   if (focused && gap > 100) active.scrollIntoView({ block: 'nearest' })

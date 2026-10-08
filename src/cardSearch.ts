@@ -37,3 +37,12 @@ export async function searchCards(query: string, start: number, signal: AbortSig
 }
 
 export function cardName(card: CardInfo): string { return card.sc_name || card.cn_name }
+
+export async function getCardDetail(id: number, signal: AbortSignal): Promise<CardInfo> {
+  const response = await fetch(`https://ygocdb.com/api/v0/card/${id}?show=all`, { signal, cache: 'no-store', credentials: 'omit' })
+  if (!response.ok) throw new Error(`卡片详情加载失败（${response.status}），请重试。`)
+  const raw: unknown = await response.json()
+  const card = raw && typeof raw === 'object' ? { ...raw, cn_name: (raw as CardInfo).cn_name || (raw as CardInfo).sc_name || (raw as CardInfo).jp_name || (raw as CardInfo).en_name } : raw
+  if (!isCard(card) || card.id !== id) throw new Error('卡片详情格式异常，请稍后重试。')
+  return card
+}

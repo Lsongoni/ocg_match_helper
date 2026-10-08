@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { searchCards } from './cardSearch'
+import { getCardDetail, searchCards } from './cardSearch'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -35,5 +35,20 @@ describe('online card search contract', () => {
   ])('rejects malformed cards or non-advancing pagination: %j', async data => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => data }))
     await expect(searchCards('青眼', 2, new AbortController().signal)).rejects.toThrow('数据格式异常')
+  })
+})
+
+describe('filtered card detail', () => {
+  it('uses the direct ID endpoint and accepts source names without a Chinese translation', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ cid: 1, id: 100, jp_name: '日本語名', text: { types: '[怪兽]', desc: '效果' } }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const signal = new AbortController().signal
+    expect((await getCardDetail(100, signal)).cn_name).toBe('日本語名')
+    expect(fetchMock).toHaveBeenCalledWith('https://ygocdb.com/api/v0/card/100?show=all', { signal, cache: 'no-store', credentials: 'omit' })
+  })
+
+  it('rejects details for the wrong card ID', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ cid: 1, id: 999, cn_name: '其他卡片', text: { types: '[怪兽]', desc: '' } }) }))
+    await expect(getCardDetail(100, new AbortController().signal)).rejects.toThrow('格式异常')
   })
 })
