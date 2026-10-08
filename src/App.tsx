@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart3, CalendarDays, Calculator, ChevronRight, ClipboardList, FileText, History, Pencil, Plus, Save, Settings2, Trash2, X } from 'lucide-react'
+import { ArrowLeft, BarChart3, CalendarDays, Calculator, ChevronRight, ClipboardList, FileText, History, Pencil, Plus, Save, Search, Settings2, Trash2, X } from 'lucide-react'
 import { deleteEvent, getSetting, listEvents, saveEvent, setSetting } from './db'
 import { CalculatorPage, LastRoundPanel } from './Calculator'
 import { ReportSheet } from './ReportSheet'
 import { PhotoPanel } from './PhotoPanel'
 import { SettingsPage } from './SettingsPage'
 import { StatsPage } from './StatsPage'
+import { CardSearchPage } from './CardSearchPage'
 import { deliverBackup } from './backup'
 import { shouldRemindBackup, snoozeDate } from './backupReminder'
 import {
@@ -16,7 +17,7 @@ import {
 } from './domain'
 import { getTournamentFormat } from './swissRounds'
 
-type Tab = 'current' | 'calculator' | 'history' | 'stats' | 'settings'
+type Tab = 'current' | 'calculator' | 'history' | 'stats' | 'cards' | 'settings'
 type DraftGame = Omit<GameRecord, 'turn'> & { turn: Turn | null }
 
 const presets = ['OO', 'OXO', 'XOO', 'XX', 'OXX', 'XOX']
@@ -392,11 +393,12 @@ export function App() {
         tab === 'current' ? (active ? <EventDetail event={active} drawRate={drawRate} onEditEvent={() => setEditingEvent(active)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(active)} onOut={() => void handleOut(active)} onAdvanced={stage => void handleAdvanced(active, stage)} onSaveNote={note => handleNote(active, note)} onReport={() => setReportEventId(active.id)} /> : <EventForm onSave={handleEventSave} />) :
         tab === 'calculator' ? <CalculatorPage active={active} savedDrawRate={drawRate} onDrawRateChange={updateDrawRate} /> :
         tab === 'stats' ? <StatsPage events={events} /> :
+        tab === 'cards' ? <CardSearchPage /> :
         tab === 'settings' ? <SettingsPage onRestored={afterRestore} onBackupSaved={() => setBackupReminder(false)} /> :
         selected ? <EventDetail event={selected} drawRate={drawRate} onBack={() => setSelectedId(null)} onEditEvent={() => setEditingEvent(selected)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(selected)} onOut={() => void handleOut(selected)} onAdvanced={stage => void handleAdvanced(selected, stage)} onSaveNote={note => handleNote(selected, note)} onReport={() => setReportEventId(selected.id)} onDelete={() => void handleDelete(selected)} /> :
         <div className="page-stack"><div className="intro-block history-intro"><p className="eyebrow">YOUR ARCHIVE</p><h2>历史比赛</h2><p>每一场赛事都留在设备里，随时查看和修改。</p></div>{events.length ? <div className="history-list">{events.map(event => <button key={event.id} className="history-card" onClick={() => setSelectedId(event.id)}><span>{formatDate(event.date)} · {event.participants} 人</span><div><strong>{event.name}</strong><ChevronRight size={20} /></div><p>{event.ownDeck} · {totalRecord(event)} · {placement(event)}</p></button>)}</div> : <div className="empty-panel"><History size={25} /><strong>还没有历史比赛</strong><p>创建赛事后，记录会保存在这台设备上。</p></div>}</div>}
     </main>
-    <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'calculator' ? 'active' : ''} onClick={() => { setTab('calculator'); setSelectedId(null); setEditingEvent(null) }}><Calculator size={21} /><span>计算器</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button><button className={tab === 'stats' ? 'active' : ''} onClick={() => { setTab('stats'); setSelectedId(null); setEditingEvent(null) }}><BarChart3 size={21} /><span>统计</span></button><button className={tab === 'settings' ? 'active' : ''} onClick={() => { setTab('settings'); setSelectedId(null); setEditingEvent(null) }}><Settings2 size={21} /><span>设置</span></button></nav>
+    <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'calculator' ? 'active' : ''} onClick={() => { setTab('calculator'); setSelectedId(null); setEditingEvent(null) }}><Calculator size={21} /><span>计算器</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button><button className={tab === 'stats' ? 'active' : ''} onClick={() => { setTab('stats'); setSelectedId(null); setEditingEvent(null) }}><BarChart3 size={21} /><span>统计</span></button><button className={tab === 'cards' ? 'active' : ''} onClick={() => { setTab('cards'); setSelectedId(null); setEditingEvent(null) }}><Search size={21} /><span>卡查</span></button><button className={tab === 'settings' ? 'active' : ''} onClick={() => { setTab('settings'); setSelectedId(null); setEditingEvent(null) }}><Settings2 size={21} /><span>设置</span></button></nav>
     {editingMatch && viewed && <MatchEditor event={viewed} match={typeof editingMatch === 'string' ? undefined : editingMatch} newPhase={editingMatch === 'new-knockout' ? 'knockout' : 'swiss'} suggestions={suggestions} onSave={handleMatchSave} onDelete={handleMatchDelete} onClose={() => setEditingMatch(null)} />}
     {reportEvent && <ReportSheet event={reportEvent} onClose={() => setReportEventId(null)} />}
     {backupReminder && <BackupReminder onBackup={() => void remindBackup()} onLater={() => void remindLater()} busy={backupBusy} error={backupError} />}

@@ -38,3 +38,9 @@
 - 已用 Pages 子路径的生产构建在 Chrome 断网模式验证：离线重载、IndexedDB 赛事和 Match 保存、Web Worker 10 万次模拟均可用。
 - 已发布到公开仓库 `Lsongoni/ocg_match_helper`，GitHub Actions 部署成功，线上地址为 `https://lsongoni.github.io/ocg_match_helper/`。
 - 真机验收待完成：在 iPhone Safari 和添加到主屏幕模式核对安全区域、键盘、照片选择、离线启动及 Files 备份恢复。桌面 Chrome 的自动化文件选择受浏览器扩展权限限制，照片上传尚未完成浏览器端验收。
+
+## 在线卡查
+
+- 已接入百鸽 API 在线搜索，支持关键词/卡片密码、分页、文字详情和按需加载卡图；详情可跳转百鸽查看裁定。
+- 卡查是需要联网的辅助功能，不下载全量卡库，不将卡片资料或卡图写入 IndexedDB / Service Worker 缓存，赛事功能的离线边界保持不变。
+- 验证通过：54 项测试与生产构建；Chrome 生产预览中的真实搜索、分页、卡图、断网提示，以及 320/390 像素视口检查。iPhone Safari 真机验收仍待完成。

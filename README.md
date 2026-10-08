@@ -24,3 +24,8 @@ npm run dev
 将代码推送到公开的 `ocg_match_helper` 仓库，并在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。`main` 分支推送后运行测试、构建并发布 `dist/`。构建会从 `GITHUB_REPOSITORY` 自动设置 Vite 的项目子路径。
 
 项目约定见 [AGENTS.md](AGENTS.md)。
+
+## 在线卡查
+
+- 卡查通过百鸽 API 在线搜索卡名、效果关键词或卡片密码，点击结果查看文字与卡图。卡查需要联网，其余已有功能仍支持离线使用。
+- 不下载全量卡库，不将卡片资料或卡图写入 IndexedDB / Service Worker 缓存；搜索结果仅保留在当前页面内存中，卡图按需加载（浏览器可能使用普通 HTTP 缓存）。
