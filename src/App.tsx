@@ -14,7 +14,7 @@ import {
   stageName, swissRecord, totalRecord,
   type EventRecord, type GameRecord, type GameResult, type MatchKind, type MatchPhase, type MatchRecord, type Turn,
 } from './domain'
-import { recommendedRounds } from './swissRounds'
+import { getTournamentFormat } from './swissRounds'
 
 type Tab = 'current' | 'calculator' | 'history' | 'stats' | 'settings'
 type DraftGame = Omit<GameRecord, 'turn'> & { turn: Turn | null }
@@ -48,17 +48,20 @@ function EventForm({ initial, onSave, onCancel }: {
   const [participants, setParticipants] = useState(initial?.participants?.toString() ?? '')
   const [roundMode, setRoundMode] = useState<'auto' | 'manual'>(initial ? 'manual' : 'auto')
   const [rounds, setRounds] = useState(initial?.plannedSwissRounds?.toString() ?? '')
-  const [cutSize, setCutSize] = useState(initial?.cutSize?.toString() ?? '8')
+  const [cutMode, setCutMode] = useState<'auto' | 'manual'>(initial ? 'manual' : 'auto')
+  const [manualCut, setCutSize] = useState(initial?.cutSize?.toString() ?? '')
   const [ownDeck, setOwnDeck] = useState(initial?.ownDeck ?? '')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const recommended = recommendedRounds(Number(participants) || 2)
-  const finalRounds = roundMode === 'auto' ? recommended : Number(rounds)
+  const recommended = getTournamentFormat(Number(participants))
+  const finalRounds = roundMode === 'auto' ? recommended?.swissRounds ?? 0 : Number(rounds)
+  const cutSize = cutMode === 'auto' ? String(recommended?.topCut ?? '') : manualCut
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     const people = Number(participants)
     const cut = Number(cutSize)
+    if (!recommended && (roundMode === 'auto' || cutMode === 'auto')) return setError('当前人数没有自动推荐规则，请手动设置瑞士轮轮数和晋级人数。')
     if (!name.trim() || !date || !ownDeck.trim()) return setError('请填写赛事名称、日期和使用卡组。')
     if (!Number.isSafeInteger(people) || people < 2) return setError('参赛人数须为至少 2 人的整数。')
     if (!Number.isSafeInteger(finalRounds) || finalRounds < 1) return setError('瑞士轮轮数须为正整数。')
@@ -88,22 +91,26 @@ function EventForm({ initial, onSave, onCancel }: {
     <Field label="赛事名称"><input value={name} onChange={e => setName(e.target.value)} placeholder="例如：周末店赛" /></Field>
     <div className="form-grid event-form-grid">
       <Field label="比赛日期"><span className="event-date-input"><span aria-hidden="true">{formatDate(date)}</span><input type="date" value={date} onChange={e => setDate(e.target.value)} /></span></Field>
-      <Field label="参赛人数"><input inputMode="numeric" type="number" min="2" value={participants} onChange={e => { const next = e.target.value; setParticipants(next); const people = Number(next); if (people >= 2 && Number(cutSize) > people) setCutSize(String(Math.max(2, 2 ** Math.floor(Math.log2(people))))) }} placeholder="例如 64" /></Field>
+      <Field label="参赛人数"><input inputMode="numeric" type="number" min="2" value={participants} onChange={e => setParticipants(e.target.value)} placeholder="例如 64" /></Field>
     </div>
     <div className="field">
       <span className="field-label">瑞士轮轮数</span>
       <div className="segmented" role="group" aria-label="瑞士轮轮数方式">
         <button type="button" className={roundMode === 'auto' ? 'selected' : ''} onClick={() => setRoundMode('auto')}>自动推荐</button>
-        <button type="button" className={roundMode === 'manual' ? 'selected' : ''} onClick={() => { if (!rounds) setRounds(String(recommended)); setRoundMode('manual') }}>手动填写</button>
+        <button type="button" className={roundMode === 'manual' ? 'selected' : ''} onClick={() => { if (!rounds) setRounds(recommended ? String(recommended.swissRounds) : ''); setRoundMode('manual') }}>手动填写</button>
       </div>
       {roundMode === 'manual' && <input inputMode="numeric" type="number" min="1" value={rounds} onChange={e => setRounds(e.target.value)} placeholder="轮数" />}
-      <span className="field-hint">推荐 {recommended} 轮，按 ceil(log₂ 人数) 估算；不是官方固定规则。</span>
+      <span className="field-hint">{recommended ? `推荐 ${recommended.swissRounds} 轮，Top ${recommended.topCut}；按人数区间规则计算。` : '少于 8 人或人数无效时无自动推荐，请手动设置轮数和晋级人数。'}</span>
     </div>
     <Field label="晋级人数">
+      <div className="segmented" role="group" aria-label="晋级人数方式">
+        <button type="button" className={cutMode === 'auto' ? 'selected' : ''} onClick={() => setCutMode('auto')}>自动推荐</button>
+        <button type="button" className={cutMode === 'manual' ? 'selected' : ''} onClick={() => { if (!manualCut) setCutSize(cutSize); setCutMode('manual') }}>手动填写</button>
+      </div>
       <div className="chip-row">{[4, 8, 16, 32].filter(value => !participants || value <= Number(participants)).map(value =>
-        <button key={value} type="button" className={`chip ${cutSize === String(value) ? 'active' : ''}`} onClick={() => setCutSize(String(value))}>Top {value}</button>,
+        <button key={value} type="button" className={`chip ${cutSize === String(value) ? 'active' : ''}`} onClick={() => { setCutSize(String(value)); setCutMode('manual') }}>Top {value}</button>,
       )}</div>
-      <input inputMode="numeric" type="number" min="2" value={cutSize} onChange={e => setCutSize(e.target.value)} aria-label="自定义晋级人数" placeholder="或输入自定义人数" />
+      <input inputMode="numeric" type="number" min="2" value={cutSize} onChange={e => { setCutSize(e.target.value); setCutMode('manual') }} aria-label="自定义晋级人数" placeholder="或输入自定义人数" />
     </Field>
     <Field label="使用卡组"><input value={ownDeck} onChange={e => setOwnDeck(e.target.value)} placeholder="例如：白森林" /></Field>
     {error && <p className="error-message" role="alert">{error}</p>}

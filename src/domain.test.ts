@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { countSwiss, formatRecord, inferredNextTurn, matchOutcome, placement, recordOf, totalRecord, visibleMatches, type EventRecord, type MatchRecord } from './domain'
-import { recommendedRounds } from './swissRounds'
+import { countSwiss, knockoutStages, stageName, formatRecord, inferredNextTurn, matchOutcome, placement, recordOf, totalRecord, visibleMatches, type EventRecord, type MatchRecord } from './domain'
+import { getTournamentFormat } from './swissRounds'
 
 function match(phase: 'swiss' | 'knockout', round: number, sequence: string): MatchRecord {
   return {
@@ -33,8 +33,8 @@ describe('赛事领域规则', () => {
   })
 
   it('区分计划与已打瑞士轮数，推荐轮数可手动覆盖', () => {
-    expect(recommendedRounds(64)).toBe(6)
-    expect(recommendedRounds(20)).toBe(5)
+    expect(getTournamentFormat(64)?.swissRounds).toBe(6)
+    expect(getTournamentFormat(20)?.swissRounds).toBe(4)
     expect(countSwiss(event([match('swiss', 1, 'OO'), match('swiss', 2, 'XX')]))).toBe(2)
   })
 
@@ -61,4 +61,9 @@ describe('赛事领域规则', () => {
     expect(placement(event([match('knockout', 1, 'OO'), match('knockout', 2, 'OO'), match('knockout', 3, 'XX')], 8))).toBe('亚军')
     expect(placement(event([match('knockout', 1, 'OO'), match('knockout', 2, 'OO'), match('knockout', 3, 'OO')], 8))).toBe('冠军')
   })
+})
+
+it.each([4, 8, 16])('Top %i 的 M 阶段按晋级人数生成', cut => {
+  const stages = knockoutStages(cut)
+  expect(stages.map(stageName)).toEqual(cut === 4 ? ['4强', '决赛'] : cut === 8 ? ['8强', '4强', '决赛'] : ['16强', '8强', '4强', '决赛'])
 })

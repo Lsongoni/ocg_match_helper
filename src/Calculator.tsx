@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Calculator, Info, RotateCcw, X } from 'lucide-react'
 import { countSwiss, formatRecord, recordOf, type EventRecord } from './domain'
-import { recommendedRounds } from './swissRounds'
+import { getTournamentFormat } from './swissRounds'
 import { findRecord, validateSimulationInput, type SimulationInput, type SimulationResult, type SimulationRow } from './simulation'
 
 const cache = new Map<string, SimulationResult>()
@@ -92,7 +92,9 @@ export function CalculatorPage({ active, savedDrawRate, onDrawRateChange }: { ac
   const [people, setPeople] = useState(String(active?.participants ?? 64))
   const [roundMode, setRoundMode] = useState<'auto' | 'manual'>(active ? 'manual' : 'auto')
   const [rounds, setRounds] = useState(String(active?.plannedSwissRounds ?? 6))
-  const [cut, setCut] = useState(String(active?.cutSize ?? 8))
+  const [cutMode, setCutMode] = useState<'auto' | 'manual'>(active ? 'manual' : 'auto')
+  const [manualCut, setCut] = useState(String(active?.cutSize ?? 8))
+  const [formError, setFormError] = useState('')
   const [drawPercent, setDrawPercent] = useState(String(savedDrawRate * 100))
   const [iterations, setIterations] = useState<100000 | 1000000>(100000)
   const [currentWins, setCurrentWins] = useState('')
@@ -100,7 +102,9 @@ export function CalculatorPage({ active, savedDrawRate, onDrawRateChange }: { ac
   const [currentDraws, setCurrentDraws] = useState('')
   const [requested, setRequested] = useState<SimulationInput | null>(null)
   const n = Number(people)
-  const r = roundMode === 'auto' ? recommendedRounds(n) : Number(rounds)
+  const recommended = getTournamentFormat(n)
+  const r = roundMode === 'auto' ? recommended?.swissRounds ?? 0 : Number(rounds)
+  const cut = cutMode === 'auto' ? String(recommended?.topCut ?? '') : manualCut
   const current = useMemo(() => {
     if (active && countSwiss(active) === r - 1 && active.participants === n && active.plannedSwissRounds === r) return recordOf(active.matches.filter(match => match.phase === 'swiss'))
     const wins = Number(currentWins), losses = Number(currentLosses), draws = Number(currentDraws)
@@ -110,16 +114,21 @@ export function CalculatorPage({ active, savedDrawRate, onDrawRateChange }: { ac
 
   function submit(event: React.FormEvent) {
     event.preventDefault()
+    if (!recommended && (roundMode === 'auto' || cutMode === 'auto')) { setFormError('当前人数没有自动推荐规则，请手动设置瑞士轮轮数和晋级人数。'); return }
+    setFormError('')
     const rate = Number(drawPercent) / 100
     if (Number.isFinite(rate) && rate >= 0 && rate <= 1) onDrawRateChange(rate)
     setRequested({ participants: n, rounds: r, cutSize: Number(cut), drawRate: rate, iterations })
   }
 
   return <div className="page-stack"><div className="intro-block"><p className="eyebrow">SWISS CALCULATOR</p><h2>瑞士轮计算器</h2><p>看看不同最终战绩大约有多大机会晋级。</p></div><form className="calculator-form" onSubmit={submit}>
-    <div className="form-grid"><label className="field"><span className="field-label">参赛人数</span><input type="number" min="2" inputMode="numeric" value={people} onChange={e => setPeople(e.target.value)} /></label><label className="field"><span className="field-label">晋级人数</span><input type="number" min="1" inputMode="numeric" value={cut} onChange={e => setCut(e.target.value)} /></label></div>
-    <div className="field"><span className="field-label">瑞士轮轮数</span><div className="segmented"><button type="button" className={roundMode === 'auto' ? 'selected' : ''} onClick={() => setRoundMode('auto')}>自动推荐 {recommendedRounds(n)}</button><button type="button" className={roundMode === 'manual' ? 'selected' : ''} onClick={() => setRoundMode('manual')}>手动输入</button></div>{roundMode === 'manual' && <input type="number" min="1" inputMode="numeric" value={rounds} onChange={e => setRounds(e.target.value)} />}</div>
+    <div className="form-grid"><label className="field"><span className="field-label">参赛人数</span><input type="number" min="2" inputMode="numeric" value={people} onChange={e => setPeople(e.target.value)} /></label><label className="field"><span className="field-label">晋级人数</span><input type="number" min="1" inputMode="numeric" aria-label="晋级人数" value={cut} onChange={e => { setCut(e.target.value); setCutMode('manual') }} /></label></div>
+    <div className="segmented" role="group" aria-label="晋级人数方式"><button type="button" className={cutMode === 'auto' ? 'selected' : ''} onClick={() => setCutMode('auto')}>自动推荐</button><button type="button" className={cutMode === 'manual' ? 'selected' : ''} onClick={() => { setCut(cut); setCutMode('manual') }}>手动输入</button></div>
+    <div className="field"><span className="field-label">瑞士轮轮数</span><div className="segmented"><button type="button" className={roundMode === 'auto' ? 'selected' : ''} onClick={() => setRoundMode('auto')}>自动推荐 {recommended?.swissRounds ?? '—'}</button><button type="button" className={roundMode === 'manual' ? 'selected' : ''} onClick={() => { if (roundMode === 'auto') setRounds(recommended ? String(recommended.swissRounds) : ''); setRoundMode('manual') }}>手动输入</button></div>{roundMode === 'manual' && <input type="number" min="1" inputMode="numeric" value={rounds} onChange={e => setRounds(e.target.value)} />}</div>
     <div className="form-grid"><label className="field"><span className="field-label">平局率 · 模拟假设</span><div className="input-suffix"><input type="number" min="0" max="100" step="0.1" inputMode="decimal" value={drawPercent} onChange={e => setDrawPercent(e.target.value)} /><span>%</span></div></label><div className="field"><span className="field-label">模拟次数</span><div className="segmented"><button type="button" className={iterations === 100000 ? 'selected' : ''} onClick={() => setIterations(100000)}>10 万</button><button type="button" className={iterations === 1000000 ? 'selected' : ''} onClick={() => setIterations(1000000)}>100 万</button></div></div></div>
     <div className="field"><span className="field-label">最后一轮前战绩（可选）</span><div className="record-inputs"><input type="number" min="0" inputMode="numeric" value={currentWins} onChange={e => setCurrentWins(e.target.value)} placeholder="胜" /><span>-</span><input type="number" min="0" inputMode="numeric" value={currentLosses} onChange={e => setCurrentLosses(e.target.value)} placeholder="负" /><span>-</span><input type="number" min="0" inputMode="numeric" value={currentDraws} onChange={e => setCurrentDraws(e.target.value)} placeholder="平" /></div><span className="field-hint">填入已打 {Math.max(0, r - 1)} 轮的战绩；若当前赛事正好剩一轮，将自动使用记录。</span></div>
+    {!recommended && <p className="field-hint">少于 8 人或人数无效时无自动推荐，请手动设置轮数和晋级人数。</p>}
+    {formError && <p className="error-message" role="alert">{formError}</p>}
     <button type="submit" className="button primary full-width"><Calculator size={18} />查看模拟结果</button>
   </form>{requested && <SimulationView key={keyOf(requested)} input={requested} currentRecord={current} autoStart />}</div>
 }
