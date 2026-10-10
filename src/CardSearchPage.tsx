@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight, Search } from 'lucide-react'
 import { cardName, searchCards, type CardInfo } from './cardSearch'
 import { CardFilterSearch } from './CardFilterSearch'
+import { CardThumbnail } from './CardThumbnail'
 
 function CardDetail({ card, onBack }: { card: CardInfo; onBack: () => void }) {
   const [imageFailed, setImageFailed] = useState(false)
@@ -89,7 +90,7 @@ export function CardSearchPage() {
     </form>
     {error && <p className="error-message" role="alert">{error}</p>}
     <div aria-live="polite" aria-busy={busy}>
-      {cards.length > 0 && <><p className="subtle-note card-results-label">“{query}” · 已显示 {cards.length} 张</p><div className="card-results">{cards.map(card => <button type="button" className="card-result" key={card.cid} onClick={() => showCard(card)}><div><strong>{cardName(card)}</strong><p>{card.text.types}</p></div><ChevronRight size={19} /></button>)}</div></>}
+      {cards.length > 0 && <><p className="subtle-note card-results-label">“{query}” · 已显示 {cards.length} 张</p><div className="card-results">{cards.map(card => <button type="button" className="card-result" key={card.cid} onClick={() => showCard(card)}><CardThumbnail key={card.id} id={card.id} /><div><strong>{cardName(card)}</strong><p>{card.text.types}</p></div><ChevronRight size={19} /></button>)}</div></>}
       {busy && <p className="loading-panel" role="status">正在搜索…</p>}
       {searched && !cards.length && !busy && <div className="empty-panel"><Search size={25} /><strong>没有找到相关卡片</strong><p>试试其他卡名、关键词或卡片密码。</p></div>}
       {!searched && !busy && !error && <div className="empty-panel"><Search size={25} /><strong>查一下卡片效果</strong><p>点击结果查看卡片文字和卡图。</p></div>}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, Search } from 'lucide-react'
 import { getCardDetail, type CardInfo } from './cardSearch'
+import { CardThumbnail } from './CardThumbnail'
 import { anyStat, appliedFilterSummary, arrows, attributes, emptyFilters, filterCardSummary, filterError, loadCardIndex, matchesCard, monsterTypes, races, spellTypes, trapTypes, TYPE, type CardFilters, type CardIndex, type FilterCard, type StatFilter } from './cardFilters'
 
 function StatField({ label, value, onChange }: { label: string; value: StatFilter; onChange: (value: StatFilter) => void }) {
@@ -89,6 +90,6 @@ export function CardFilterSearch({ onSelect }: { onSelect: (card: CardInfo) => v
     {open && <FilterForm value={filters} onChange={setFilters} onSubmit={() => void submit()} busy={busy} />}
     {error && <p role="alert" className="error-message">{error}</p>}
     {detailLoading !== null && <p role="status" className="subtle-note">正在加载卡片详情…</p>}
-    {applied && index && <div aria-live="polite"><p ref={resultHeading} className="subtle-note card-results-label">符合条件 {results.length} 张 · 已显示 {Math.min(visible, results.length)} 张</p><p className="filter-applied">{appliedFilterSummary(applied)}</p>{results.length ? <div className="card-results">{results.slice(0, visible).map(card => <button className="card-result" key={card.cid} disabled={detailLoading !== null || busy} onClick={() => void select(card)}><div><strong>{card.name}</strong><p>{filterCardSummary(card)}</p></div><ChevronRight size={19} /></button>)}</div> : <div className="empty-panel"><Search size={25} /><strong>没有符合条件的卡片</strong><p>试着减少条件或扩大攻守范围。</p></div>}{visible < results.length && <button className="button secondary full-width filter-more" onClick={() => setVisible(visible + 30)}>加载更多</button>}<p className="subtle-note filter-index-note">筛选资料更新：{new Date(index.updatedAt).toLocaleDateString('zh-CN')}{index.excludedCount > 0 && `；${index.excludedCount} 条资料缺少筛选字段，未纳入筛选。`}</p></div>}
+    {applied && index && <div aria-live="polite"><p ref={resultHeading} className="subtle-note card-results-label">符合条件 {results.length} 张 · 已显示 {Math.min(visible, results.length)} 张</p><p className="filter-applied">{appliedFilterSummary(applied)}</p>{results.length ? <div className="card-results">{results.slice(0, visible).map(card => <button className="card-result" key={card.cid} disabled={detailLoading !== null || busy} onClick={() => void select(card)}><CardThumbnail key={card.id} id={card.id} /><div><strong>{card.name}</strong><p>{filterCardSummary(card)}</p></div><ChevronRight size={19} /></button>)}</div> : <div className="empty-panel"><Search size={25} /><strong>没有符合条件的卡片</strong><p>试着减少条件或扩大攻守范围。</p></div>}{visible < results.length && <button className="button secondary full-width filter-more" onClick={() => setVisible(visible + 30)}>加载更多</button>}<p className="subtle-note filter-index-note">筛选资料更新：{new Date(index.updatedAt).toLocaleDateString('zh-CN')}{index.excludedCount > 0 && `；${index.excludedCount} 条资料缺少筛选字段，未纳入筛选。`}</p></div>}
   </div>
 }
