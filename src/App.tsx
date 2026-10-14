@@ -16,6 +16,8 @@ import {
   type EventRecord, type GameRecord, type GameResult, type MatchKind, type MatchPhase, type MatchRecord, type Turn,
 } from './domain'
 import { getTournamentFormat } from './swissRounds'
+import { HistoryPage } from './HistoryPage'
+import { deckNames, emptyEventFilters, latestEvent, reusableEventFields } from './eventFilters'
 
 type Tab = 'current' | 'calculator' | 'history' | 'stats' | 'cards' | 'settings'
 type DraftGame = Omit<GameRecord, 'turn'> & { turn: Turn | null }
@@ -39,8 +41,10 @@ function Field({ label, children, hint }: { label: string; children: React.React
   return <label className="field"><span className="field-label">{label}</span>{children}{hint && <span className="field-hint">{hint}</span>}</label>
 }
 
-function EventForm({ initial, onSave, onCancel }: {
+function EventForm({ initial, previous, suggestions, onSave, onCancel }: {
   initial?: EventRecord
+  previous?: EventRecord
+  suggestions: string[]
   onSave: (event: EventRecord) => Promise<void>
   onCancel?: () => void
 }) {
@@ -54,6 +58,7 @@ function EventForm({ initial, onSave, onCancel }: {
   const [ownDeck, setOwnDeck] = useState(initial?.ownDeck ?? '')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [reused, setReused] = useState(false)
   const recommended = getTournamentFormat(Number(participants))
   const finalRounds = roundMode === 'auto' ? recommended?.swissRounds ?? 0 : Number(rounds)
   const cutSize = cutMode === 'auto' ? String(recommended?.topCut ?? '') : manualCut
@@ -89,6 +94,11 @@ function EventForm({ initial, onSave, onCancel }: {
       <h2>{initial ? '赛事信息' : '新建一场比赛'}</h2>
       <p>比赛结束一个 Match 后，再打开这里一次性记录。</p>
     </div>
+    {!initial && previous && <section className="reuse-event"><button type="button" className="button secondary full-width" onClick={() => {
+      const fields = reusableEventFields(previous)
+      setName(fields.name); setDate(fields.date); setParticipants(String(fields.participants)); setOwnDeck(fields.ownDeck)
+      setRounds(String(fields.plannedSwissRounds)); setCutSize(String(fields.cutSize)); setRoundMode('manual'); setCutMode('manual'); setError(''); setReused(true)
+    }}>沿用上次赛事设置</button><p className="subtle-note">{formatDate(previous.date)} · {previous.name} · {previous.ownDeck}</p>{reused && <p className="success-message" role="status">已填入设置，日期为今天。请核对人数；轮数与晋级人数保留为手动值，可切回自动推荐。</p>}</section>}
     <Field label="赛事名称"><input value={name} onChange={e => setName(e.target.value)} placeholder="例如：周末店赛" /></Field>
     <div className="form-grid event-form-grid">
       <Field label="比赛日期"><span className="event-date-input"><span aria-hidden="true">{formatDate(date)}</span><input type="date" value={date} onChange={e => setDate(e.target.value)} /></span></Field>
@@ -113,7 +123,7 @@ function EventForm({ initial, onSave, onCancel }: {
       )}</div>
       <input inputMode="numeric" type="number" min="2" value={cutSize} onChange={e => { setCutSize(e.target.value); setCutMode('manual') }} aria-label="自定义晋级人数" placeholder="或输入自定义人数" />
     </Field>
-    <Field label="使用卡组"><input value={ownDeck} onChange={e => setOwnDeck(e.target.value)} placeholder="例如：白森林" /></Field>
+    <Field label="使用卡组"><input value={ownDeck} onChange={e => setOwnDeck(e.target.value)} placeholder="例如：白森林" list="own-deck-suggestions" /><datalist id="own-deck-suggestions">{suggestions.map(deck => <option key={deck} value={deck} />)}</datalist></Field>
     {error && <p className="error-message" role="alert">{error}</p>}
     <div className="form-actions">
       {onCancel && <button type="button" className="button secondary" onClick={onCancel}>取消</button>}
@@ -294,11 +304,12 @@ export function App() {
   const [backupReminder, setBackupReminder] = useState(false)
   const [backupBusy, setBackupBusy] = useState(false)
   const [backupError, setBackupError] = useState('')
+  const [historyFilters, setHistoryFilters] = useState({ ...emptyEventFilters })
   const active = events.find(event => event.status === 'active')
   const selected = events.find(event => event.id === selectedId)
   const reportEvent = events.find(event => event.id === reportEventId)
   const viewed = tab === 'current' ? active : selected
-  const suggestions = useMemo(() => [...new Set(events.flatMap(event => visibleMatches(event).filter(match => matchKind(match) === 'normal').map(match => match.opponentDeck)))].sort(), [events])
+  const suggestions = useMemo(() => deckNames(events), [events])
 
   async function refresh() {
     try { setEvents(await listEvents()); setError('') } catch { setError('无法读取本地记录，请检查浏览器存储权限。') } finally { setLoading(false) }
@@ -321,7 +332,7 @@ export function App() {
     catch { setBackupError('无法保存提醒设置，请检查设备存储空间。') }
   }
   async function afterRestore() {
-    await refresh(); setDrawRate(await getSetting('drawRate', .03)); setBackupReminder(false); setSelectedId(null); setTab('history')
+    await refresh(); setDrawRate(await getSetting('drawRate', .03)); setBackupReminder(false); setSelectedId(null); setHistoryFilters({ ...emptyEventFilters }); setTab('history')
   }
 
   async function handleEventSave(record: EventRecord) {
@@ -389,14 +400,14 @@ export function App() {
     <header className="topbar"><div className="brand-mark">OCG<span>.</span></div><span className="topbar-subtitle">比赛助手</span></header>
     <main className="main-content">
       {loading ? <div className="loading-panel">正在读取本地赛事…</div> : error ? <div className="error-panel" role="alert">{error}<button className="button secondary" onClick={() => void refresh()}>重试</button></div> :
-        editingEvent ? <EventForm initial={editingEvent} onSave={handleEventSave} onCancel={() => setEditingEvent(null)} /> :
-        tab === 'current' ? (active ? <EventDetail event={active} drawRate={drawRate} onEditEvent={() => setEditingEvent(active)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(active)} onOut={() => void handleOut(active)} onAdvanced={stage => void handleAdvanced(active, stage)} onSaveNote={note => handleNote(active, note)} onReport={() => setReportEventId(active.id)} /> : <EventForm onSave={handleEventSave} />) :
+        editingEvent ? <EventForm initial={editingEvent} suggestions={suggestions} onSave={handleEventSave} onCancel={() => setEditingEvent(null)} /> :
+        tab === 'current' ? (active ? <EventDetail event={active} drawRate={drawRate} onEditEvent={() => setEditingEvent(active)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(active)} onOut={() => void handleOut(active)} onAdvanced={stage => void handleAdvanced(active, stage)} onSaveNote={note => handleNote(active, note)} onReport={() => setReportEventId(active.id)} /> : <EventForm previous={latestEvent(events)} suggestions={suggestions} onSave={handleEventSave} />) :
         tab === 'calculator' ? <CalculatorPage active={active} savedDrawRate={drawRate} onDrawRateChange={updateDrawRate} /> :
         tab === 'stats' ? <StatsPage events={events} /> :
         tab === 'cards' ? <CardSearchPage /> :
-        tab === 'settings' ? <SettingsPage onRestored={afterRestore} onBackupSaved={() => setBackupReminder(false)} /> :
+        tab === 'settings' ? <SettingsPage events={events} onDecksChanged={async () => { await refresh(); setHistoryFilters({ ...emptyEventFilters }) }} onRestored={afterRestore} onBackupSaved={() => setBackupReminder(false)} /> :
         selected ? <EventDetail event={selected} drawRate={drawRate} onBack={() => setSelectedId(null)} onEditEvent={() => setEditingEvent(selected)} onEditMatch={setEditingMatch} onAddMatch={phase => setEditingMatch(phase === 'swiss' ? 'new-swiss' : 'new-knockout')} onEndEarly={() => void handleEnd(selected)} onOut={() => void handleOut(selected)} onAdvanced={stage => void handleAdvanced(selected, stage)} onSaveNote={note => handleNote(selected, note)} onReport={() => setReportEventId(selected.id)} onDelete={() => void handleDelete(selected)} /> :
-        <div className="page-stack"><div className="intro-block history-intro"><p className="eyebrow">YOUR ARCHIVE</p><h2>历史比赛</h2><p>每一场赛事都留在设备里，随时查看和修改。</p></div>{events.length ? <div className="history-list">{events.map(event => <button key={event.id} className="history-card" onClick={() => setSelectedId(event.id)}><span>{formatDate(event.date)} · {event.participants} 人</span><div><strong>{event.name}</strong><ChevronRight size={20} /></div><p>{event.ownDeck} · {totalRecord(event)} · {placement(event)}</p></button>)}</div> : <div className="empty-panel"><History size={25} /><strong>还没有历史比赛</strong><p>创建赛事后，记录会保存在这台设备上。</p></div>}</div>}
+        <HistoryPage events={events} filters={historyFilters} onFilters={setHistoryFilters} onSelect={setSelectedId} />}
     </main>
     <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'calculator' ? 'active' : ''} onClick={() => { setTab('calculator'); setSelectedId(null); setEditingEvent(null) }}><Calculator size={21} /><span>计算器</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button><button className={tab === 'stats' ? 'active' : ''} onClick={() => { setTab('stats'); setSelectedId(null); setEditingEvent(null) }}><BarChart3 size={21} /><span>统计</span></button><button className={tab === 'cards' ? 'active' : ''} onClick={() => { setTab('cards'); setSelectedId(null); setEditingEvent(null) }}><Search size={21} /><span>卡查</span></button><button className={tab === 'settings' ? 'active' : ''} onClick={() => { setTab('settings'); setSelectedId(null); setEditingEvent(null) }}><Settings2 size={21} /><span>设置</span></button></nav>
     {editingMatch && viewed && <MatchEditor event={viewed} match={typeof editingMatch === 'string' ? undefined : editingMatch} newPhase={editingMatch === 'new-knockout' ? 'knockout' : 'swiss'} suggestions={suggestions} onSave={handleMatchSave} onDelete={handleMatchDelete} onClose={() => setEditingMatch(null)} />}

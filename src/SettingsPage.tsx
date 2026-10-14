@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { ArchiveRestore, Download, HardDriveDownload, Info } from 'lucide-react'
 import { deliverBackup, loadBackup, replaceFromBackup, type LoadedBackup } from './backup'
 import { getSetting } from './db'
+import type { EventRecord } from './domain'
+import { DeckManager } from './DeckManager'
 
 function dateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) : '尚未备份'
 }
 
-export function SettingsPage({ onRestored, onBackupSaved }: { onRestored: () => Promise<void>; onBackupSaved: (at: string) => void }) {
+export function SettingsPage({ events, onDecksChanged, onRestored, onBackupSaved }: { events: EventRecord[]; onDecksChanged: () => Promise<void>; onRestored: () => Promise<void>; onBackupSaved: (at: string) => void }) {
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null)
   const [pending, setPending] = useState<LoadedBackup | null>(null)
   const [busy, setBusy] = useState(false)
@@ -48,6 +50,7 @@ export function SettingsPage({ onRestored, onBackupSaved }: { onRestored: () => 
     <section className="settings-card"><div className="settings-heading"><ArchiveRestore size={22} /><div><h3>恢复备份</h3><p>从 Files / iCloud Drive 选择 ZIP 文件</p></div></div><p>先校验并预览内容。确认后，备份会整体替换本机现有记录。</p><label className="button secondary full-width photo-upload">选择备份 ZIP<input type="file" accept=".zip,application/zip" disabled={busy} onChange={e => { void choose(e.target.files?.[0]); e.currentTarget.value = '' }} /></label>
       {pending && <div className="restore-preview"><strong>待恢复备份</strong><span>导出时间：{dateTime(pending.exportedAt)}</span><span>App 版本：{pending.appVersion}</span><span>赛事：{pending.events.length} 场 · 照片：{pending.photos.length} 张</span><button className="button danger full-width" onClick={() => void restore()} disabled={busy}>确认覆盖并恢复</button><button className="text-button muted" onClick={() => setPending(null)}>取消</button></div>}
     </section>
+    <DeckManager events={events} onChanged={onDecksChanged} />
     <div className="notice"><Info size={17} /><span>本地浏览器数据可能因换手机或清理网站数据而丢失。备份提示只会在打开 App 时出现，不使用推送通知。</span></div>
     {error && <p className="error-message" role="alert">{error}</p>}{success && <p className="success-message" role="status">{success}</p>}
   </div>
