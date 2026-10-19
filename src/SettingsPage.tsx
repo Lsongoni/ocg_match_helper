@@ -4,6 +4,7 @@ import { deliverBackup, loadBackup, replaceFromBackup, type LoadedBackup } from 
 import { getSetting } from './db'
 import type { EventRecord } from './domain'
 import { DeckManager } from './DeckManager'
+import { ThemeSettings } from './ThemeSettings'
 
 function dateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) : '尚未备份'
@@ -46,6 +47,7 @@ export function SettingsPage({ events, onDecksChanged, onRestored, onBackupSaved
   }
 
   return <div className="page-stack"><div className="intro-block"><p className="eyebrow">LOCAL DATA</p><h2>设置与备份</h2><p>记录首先存在这台设备上。定期把完整 ZIP 备份保存到 Files 或 iCloud Drive。</p></div>
+    <ThemeSettings />
     <section className="settings-card"><div className="settings-heading"><HardDriveDownload size={22} /><div><h3>完整备份</h3><p>上次备份：{dateTime(lastBackupAt)}</p></div></div><p>包含所有赛事、Match、Game、备注、设置和卡组照片。战报 TXT 不能用于恢复。</p><button className="button primary full-width" onClick={() => void backup()} disabled={busy}><Download size={18} />{busy ? '处理中…' : '立即备份 ZIP'}</button></section>
     <section className="settings-card"><div className="settings-heading"><ArchiveRestore size={22} /><div><h3>恢复备份</h3><p>从 Files / iCloud Drive 选择 ZIP 文件</p></div></div><p>先校验并预览内容。确认后，备份会整体替换本机现有记录。</p><label className="button secondary full-width photo-upload">选择备份 ZIP<input type="file" accept=".zip,application/zip" disabled={busy} onChange={e => { void choose(e.target.files?.[0]); e.currentTarget.value = '' }} /></label>
       {pending && <div className="restore-preview"><strong>待恢复备份</strong><span>导出时间：{dateTime(pending.exportedAt)}</span><span>App 版本：{pending.appVersion}</span><span>赛事：{pending.events.length} 场 · 照片：{pending.photos.length} 张</span><button className="button danger full-width" onClick={() => void restore()} disabled={busy}>确认覆盖并恢复</button><button className="text-button muted" onClick={() => setPending(null)}>取消</button></div>}

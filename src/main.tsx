@@ -3,12 +3,15 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import { App } from './App'
 import './styles.css'
+import { loadTheme, watchSystemTheme } from './theme'
 
-createRoot(document.getElementById('root')!).render(
+watchSystemTheme()
+// Apply the saved preference before mounting the interface.
+void loadTheme().catch(error => console.error('无法读取外观设置', error)).then(() => createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
-)
+))
 
 const updateSW = registerSW({
   onNeedRefresh() {

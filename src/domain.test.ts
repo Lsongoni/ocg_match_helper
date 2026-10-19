@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countSwiss, knockoutStages, stageName, formatRecord, inferredNextTurn, matchOutcome, placement, recordOf, totalRecord, visibleMatches, type EventRecord, type MatchRecord } from './domain'
+import { countSwiss, matchLabel, knockoutStages, stageName, formatRecord, inferredNextTurn, matchOutcome, placement, recordOf, totalRecord, visibleMatches, type EventRecord, type MatchRecord } from './domain'
 import { getTournamentFormat } from './swissRounds'
 
 function match(phase: 'swiss' | 'knockout', round: number, sequence: string): MatchRecord {
@@ -65,5 +65,18 @@ describe('赛事领域规则', () => {
 
 it.each([4, 8, 16])('Top %i 的 M 阶段按晋级人数生成', cut => {
   const stages = knockoutStages(cut)
-  expect(stages.map(stageName)).toEqual(cut === 4 ? ['4强', '决赛'] : cut === 8 ? ['8强', '4强', '决赛'] : ['16强', '8强', '4强', '决赛'])
+  expect(stages.map(stageName)).toEqual(cut === 4 ? ['半决赛', '决赛'] : cut === 8 ? ['8进4', '半决赛', '决赛'] : ['16进8', '8进4', '半决赛', '决赛'])
+})
+
+
+it('按首战阶段显示淘汰赛名称，兼容历史记录与自定义人数', () => {
+  const tournament = { ...event([], 16), cutSize: 16 }
+  expect([1, 2, 3, 4].map(round => matchLabel({ phase: 'knockout', round }, tournament))).toEqual(['16进8', '8进4', '半决赛', '决赛'])
+  expect(matchLabel(match('swiss', 3, 'OO'), tournament)).toBe('R3')
+  expect(matchLabel(match('knockout', 1, 'OO'), { ...tournament, cutSize: 12, firstKnockoutStage: 8 })).toBe('8进4')
+  expect(matchLabel(match('knockout', 1, 'OO'), { ...tournament, firstKnockoutStage: null })).toBe('16进8')
+})
+
+it('编辑较早的淘汰赛导致数组顺序变化时仍保留正确名次', () => {
+  expect(placement(event([match('knockout', 2, 'XX'), match('knockout', 1, 'OO')], 8))).toBe('4强')
 })

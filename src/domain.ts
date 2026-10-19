@@ -106,7 +106,8 @@ export function totalRecord(event: EventRecord): string {
 
 export function stageName(stage: number): string {
   if (stage === 2) return '决赛'
-  return `${stage}强`
+  if (stage === 4) return '半决赛'
+  return `${stage}进${stage / 2}`
 }
 
 export function knockoutStages(cutSize: number): number[] {
@@ -122,10 +123,10 @@ export function knockoutStages(cutSize: number): number[] {
 export function placement(event: EventRecord): string {
   if (event.advancement === 'out') return '没出轮'
   if (event.advancement !== 'in' || !event.firstKnockoutStage) return '待确认'
-  const knockouts = event.matches.filter(match => match.phase === 'knockout')
+  const knockouts = event.matches.filter(match => match.phase === 'knockout').sort((a, b) => a.round - b.round)
   for (let index = 0; index < knockouts.length; index += 1) {
     const stage = event.firstKnockoutStage / 2 ** index
-    if (matchOutcome(knockouts[index]) === 'loss') return stage === 2 ? '亚军' : stageName(stage)
+    if (matchOutcome(knockouts[index]) === 'loss') return stage === 2 ? '亚军' : `${stage}强`
     if (stage === 2 && matchOutcome(knockouts[index]) === 'win') return '冠军'
   }
   return '淘汰赛进行中'
@@ -142,6 +143,8 @@ export function sortedMatches(event: EventRecord): MatchRecord[] {
   })
 }
 
-export function matchLabel(match: MatchRecord): string {
-  return `${match.phase === 'swiss' ? 'R' : 'M'}${match.round}`
+export function matchLabel(match: Pick<MatchRecord, 'phase' | 'round'>, event: Pick<EventRecord, 'firstKnockoutStage' | 'cutSize'>): string {
+  if (match.phase === 'swiss') return `R${match.round}`
+  const firstStage = event.firstKnockoutStage ?? knockoutStages(event.cutSize)[0]
+  return stageName(firstStage / 2 ** (match.round - 1))
 }

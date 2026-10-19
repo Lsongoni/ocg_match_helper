@@ -9,8 +9,8 @@ export function generateReport(event: EventRecord, includeNotes: boolean): strin
   ]
   for (const match of sortedMatches(event)) {
     const special = matchKindLabel(match)
-    if (special) { lines.push(`${matchLabel(match)} ${special}`); continue }
-    lines.push(`${matchLabel(match)} ${match.opponentDeck} ${match.games[0].turn === 'first' ? '先' : '后'} ${match.games.map(game => game.result).join('')}`)
+    if (special) { lines.push(`${matchLabel(match, event)} ${special}`); continue }
+    lines.push(`${matchLabel(match, event)} ${match.opponentDeck} ${match.games[0].turn === 'first' ? '先' : '后'} ${match.games.map(game => game.result).join('')}`)
     if (includeNotes) {
       const notes = match.games.flatMap((game, index) => game.note.trim() ? [`G${index + 1}：${game.note.trim()}`] : [])
       if (notes.length) lines.push('', ...notes, '')

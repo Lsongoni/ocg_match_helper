@@ -44,3 +44,10 @@ describe('战报', () => {
     expect(reportFilename({ ...event, name: 'A/B:杯' })).toBe('2026-10-03-A_B_杯.txt')
   })
 })
+
+
+it('战报显示淘汰赛阶段并保留最终名次', () => {
+  const text = generateReport({ ...event, advancement: 'in', firstKnockoutStage: 16, cutSize: 16, matches: [1, 2, 3, 4].map(round => ({ ...event.matches[0], id: `k${round}`, phase: 'knockout', round })) }, false)
+  for (const label of ['16进8', '8进4', '半决赛', '决赛']) expect(text).toContain(`${label} M∀LICE 先 OXO`)
+  expect(text).toContain('最终：冠军')
+})
