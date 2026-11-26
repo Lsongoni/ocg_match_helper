@@ -402,7 +402,7 @@ export function App() {
   }
 
   return <div className="app-shell">
-    <header className="topbar"><div className="brand-mark">OCG<span>.</span></div><span className="topbar-subtitle">比赛助手</span></header>
+    <header className="topbar"><div className="brand-mark"><span className="brand-text">OCG<span>.</span></span></div><span className="topbar-subtitle">比赛助手</span></header>
     <main className="main-content">
       {loading ? <div className="loading-panel">正在读取本地赛事…</div> : error ? <div className="error-panel" role="alert">{error}<button className="button secondary" onClick={() => void refresh()}>重试</button></div> :
         editingEvent ? <EventForm initial={editingEvent} suggestions={suggestions} onSave={handleEventSave} onCancel={() => setEditingEvent(null)} /> :

@@ -1,6 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="110" fill="#214d38"/>
-  <path d="M88 364h336" stroke="#6abc89" stroke-width="16" stroke-linecap="round"/>
-  <text x="256" y="300" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="142" font-weight="900" letter-spacing="-12">OCG</text>
-  <circle cx="418" cy="120" r="25" fill="#76c48c"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="OCG 比赛助手">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#206447"/>
+      <stop offset="0.85" stop-color="#0c261a"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#baf0cc"/>
+      <stop offset="1" stop-color="#68c48d"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- 竞技场环轨：瑞士轮配对的圆环意象 -->
+  <circle cx="256" cy="256" r="202" fill="none" stroke="#92d8ac" stroke-opacity="0.28" stroke-width="5"/>
+  <g fill="#92d8ac">
+    <circle cx="399" cy="113" r="15" fill-opacity="0.62"/>
+    <circle cx="399" cy="399" r="15" fill-opacity="0.62"/>
+    <circle cx="113" cy="399" r="11" fill-opacity="0.42"/>
+    <circle cx="113" cy="113" r="8" fill-opacity="0.28"/>
+  </g>
+
+  <!-- 四角星核心标记 -->
+  <path d="M256 104
+           L286 226
+           L408 256
+           L286 286
+           L256 408
+           L226 286
+           L104 256
+           L226 226 Z"
+        fill="url(#mark)"/>
+
+  <circle cx="256" cy="256" r="26" fill="none" stroke="#0c261a" stroke-opacity="0.75" stroke-width="10"/>
+  <circle cx="256" cy="256" r="11" fill="#f0fdf5"/>
 </svg>
