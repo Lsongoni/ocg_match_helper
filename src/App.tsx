@@ -14,7 +14,7 @@ import { shouldRemindBackup, snoozeDate } from './backupReminder'
 import {
   countKnockout, countSwiss, formatDate, inferredNextTurn, knockoutStages, localToday,
   makeId, matchKind, matchKindLabel, matchLabel, matchOutcome, placement, sortedMatches, visibleMatches,
-  stageName, swissRecord, totalRecord, recordOf,
+  stageName, swissRecord, totalRecord, recordOf, formatRecord,
   type EventRecord, type GameRecord, type GameResult, type MatchKind, type MatchPhase, type MatchRecord, type Turn,
 } from './domain'
 import { getTournamentFormat } from './swissRounds'
@@ -230,7 +230,7 @@ function AdvancementPanel({ event, onAdvanced, onOut }: { event: EventRecord; on
   const stages = knockoutStages(event.cutSize)
   const standard = Number.isInteger(Math.log2(event.cutSize))
   const [firstStage, setFirstStage] = useState(event.firstKnockoutStage ?? stages[0])
-  return <section className="decision-panel"><p className="eyebrow">SWISS FINISHED</p><h3>是否出轮</h3><p>按正式赛事结果选择，可在这里修正。模拟概率不会自动决定出轮。</p>
+  return <section className="decision-panel"><p className="eyebrow">赛后确认</p><h3>是否出轮</h3><p>按正式赛事结果选择，可在这里修正。模拟概率不会自动决定出轮。</p>
     {!standard && event.advancement !== 'in' && <label className="field"><span className="field-label">自己的首场淘汰赛阶段</span><select value={firstStage} onChange={e => setFirstStage(Number(e.target.value))}>{stages.map(stage => <option value={stage} key={stage}>{stageName(stage)}</option>)}</select><span className="field-hint">自定义 Top 可能包含轮空，按实际首战选择。</span></label>}
     <div className="decision-actions"><button className="button primary" onClick={() => onAdvanced(firstStage)} disabled={event.advancement === 'in'}>{event.advancement === 'in' ? '已选择：出轮' : `已出轮 · 进入${stageName(firstStage)}`}</button><button className="button secondary" onClick={onOut} disabled={event.advancement === 'out'}>{event.advancement === 'out' ? '已选择：没出轮' : '改为没出轮'}</button></div>
   </section>
@@ -245,7 +245,7 @@ function TotalNote({ value, onSave }: { value: string; onSave: (note: string) =>
     setBusy(true)
     try { await onSave(note); setError('') } catch { setError('总备注保存失败。') } finally { setBusy(false) }
   }
-  return <section className="section-block"><div className="section-heading"><div><p className="eyebrow">EVENT NOTE</p><h3>赛事总备注</h3></div></div><textarea className="event-note" rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="整场赛事的复盘，可选" />{note !== value && <button className="text-button" onClick={() => void save()} disabled={busy}><Save size={16} />保存总备注</button>}{error && <p className="error-message">{error}</p>}</section>
+  return <section className="section-block"><div className="section-heading"><div><p className="eyebrow">赛事备注</p><h3>赛事总备注</h3></div></div><textarea className="event-note" rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="整场赛事的复盘，可选" />{note !== value && <button className="text-button" onClick={() => void save()} disabled={busy}><Save size={16} />保存总备注</button>}{error && <p className="error-message">{error}</p>}</section>
 }
 
 function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEndEarly, onOut, onAdvanced, onSaveNote, onReport, onDelete, drawRate }: {
@@ -276,8 +276,25 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
       <h2>{event.name}</h2><p className="event-meta"><CalendarDays size={15} />{formatDate(event.date)} <span className="dot" /> {event.participants} 人 · {event.plannedSwissRounds} 轮 · Top {event.cutSize}</p>
       <div className="hero-deck"><span>使用卡组</span><strong>{event.ownDeck}</strong></div>
     </section>
-    <section className="score-strip"><div><span>瑞士战绩</span><strong>{swissRecord(event)}</strong></div><div><span>已完成轮数</span><strong>{played} <small>/ {event.plannedSwissRounds}</small></strong></div><div><span>最终成绩</span><strong className="small-score">{placement(event)}</strong></div></section>
-    <section className="section-block"><div className="section-heading"><div><p className="eyebrow">MATCH LOG</p><h3>对局记录</h3></div><span className="count-pill">{visibleMatches(event).length} 场</span></div><MatchList event={event} onEdit={onEditMatch} /></section>
+    <section className="scoreboard">
+      <div className="score-ring">
+        <svg viewBox="0 0 66 66" aria-hidden="true">
+          <circle className="ring-track" cx="33" cy="33" r="28" />
+          <circle
+            className="ring-fill" cx="33" cy="33" r="28"
+            strokeDasharray={2 * Math.PI * 28}
+            strokeDashoffset={2 * Math.PI * 28 * (1 - Math.min(1, played / Math.max(1, event.plannedSwissRounds)))}
+          />
+        </svg>
+        <span className="score-ring-text"><b>{played}<small>/{event.plannedSwissRounds}</small></b><small>轮</small></span>
+      </div>
+      <div className="score-figures">
+        <div><span>瑞士战绩</span><strong>{swissRecord(event)}</strong></div>
+        <div><span>{knockouts > 0 ? '淘汰赛战绩' : '总战绩'}</span><strong>{knockouts > 0 ? formatRecord(recordOf(event.matches.filter(match => match.phase === 'knockout'))) : totalRecord(event)}</strong></div>
+        <div className="score-span"><span>最终成绩</span><strong className="placement">{placement(event)}</strong></div>
+      </div>
+    </section>
+    <section className="section-block"><div className="section-heading"><div><p className="eyebrow">对局</p><h3>对局记录</h3></div><span className="count-pill">{visibleMatches(event).length} 场</span></div><MatchList event={event} onEdit={onEditMatch} /></section>
     {canAddSwiss && <button className="button primary full-width add-match" onClick={() => onAddMatch('swiss')}><Plus size={20} />记录 R{played + 1} Match</button>}
     {lastRound && <LastRoundStandings key={`${event.id}-${played}`} event={event} roundsPlayed={played} wins={swissTally.wins} draws={swissTally.draws} />}
     {lastRound && <LastRoundPanel event={event} drawRate={drawRate} />}
@@ -293,7 +310,7 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
 }
 
 function BackupReminder({ onBackup, onLater, busy, error }: { onBackup: () => void; onLater: () => void; busy: boolean; error: string }) {
-  return <div className="sheet-backdrop reminder-backdrop"><section className="reminder-dialog" role="dialog" aria-modal="true" aria-label="备份提醒"><p className="eyebrow">BACKUP REMINDER</p><h2>记得备份比赛记录</h2><p>距离首次记录或上次备份已超过 30 天。建议保存完整 ZIP，避免换手机或浏览器数据丢失。</p>{error && <p className="error-message" role="alert">{error}</p>}<button className="button primary full-width" onClick={onBackup} disabled={busy}>{busy ? '正在生成备份…' : '立即备份'}</button><button className="button quiet full-width" onClick={onLater} disabled={busy}>稍后提醒</button></section></div>
+  return <div className="sheet-backdrop reminder-backdrop"><section className="reminder-dialog" role="dialog" aria-modal="true" aria-label="备份提醒"><p className="eyebrow">备份提醒</p><h2>记得备份比赛记录</h2><p>距离首次记录或上次备份已超过 30 天。建议保存完整 ZIP，避免换手机或浏览器数据丢失。</p>{error && <p className="error-message" role="alert">{error}</p>}<button className="button primary full-width" onClick={onBackup} disabled={busy}>{busy ? '正在生成备份…' : '立即备份'}</button><button className="button quiet full-width" onClick={onLater} disabled={busy}>稍后提醒</button></section></div>
 }
 
 export function App() {

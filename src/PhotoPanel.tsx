@@ -64,7 +64,7 @@ export function PhotoPanel({ eventId }: { eventId: string }) {
     try { await db.photos.delete(eventId); setPhoto(null) } catch { setError('照片删除失败。') }
   }
 
-  return <section className="section-block"><div className="section-heading"><div><p className="eyebrow">DECK PROFILE</p><h3>卡组照片</h3></div></div>
+  return <section className="section-block"><div className="section-heading"><div><p className="eyebrow">卡组照片</p><h3>卡组照片</h3></div></div>
     {url ? <img className="deck-photo" src={url} alt="该场赛事的卡组照片" /> : <div className="photo-empty"><ImagePlus size={24} /><span>为这场赛事保存一张卡组照片</span></div>}
     <div className="photo-actions"><label className="button secondary photo-upload"><ImagePlus size={17} />{busy ? '处理中…' : photo ? '更换照片' : '添加照片'}<input type="file" accept="image/*" disabled={busy} onChange={e => { void upload(e.target.files?.[0]); e.currentTarget.value = '' }} /></label>{photo && <button className="text-button muted" onClick={() => void remove()}><Trash2 size={15} />删除照片</button>}</div>
     <p className="field-hint">上传后转换为压缩 JPEG，仅保存在本机，并包含在完整备份中。</p>

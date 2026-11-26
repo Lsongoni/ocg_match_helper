@@ -8,7 +8,7 @@ function CardDetail({ card, onBack }: { card: CardInfo; onBack: () => void }) {
   const [imageFailed, setImageFailed] = useState(false)
   return <div className="page-stack">
     <button className="text-button" onClick={onBack}><ArrowLeft size={17} />返回搜索结果</button>
-    <div className="intro-block"><p className="eyebrow">CARD DETAIL</p><h2>{cardName(card)}</h2></div>
+    <div className="intro-block"><p className="eyebrow">卡片详情</p><h2>{cardName(card)}</h2></div>
     <section className="card-detail">
       {imageFailed ? <p className="subtle-note">卡图暂时无法加载，文字资料仍可查看。</p> : <img className="card-art" src={`https://cdn.233.momobako.com/ygopro/pics/${card.id}.jpg!half`} alt={cardName(card)} onError={() => setImageFailed(true)} />}
       <div className="card-names">{card.cn_name !== cardName(card) && <p>其他译名：{card.cn_name}</p>}{card.jp_name && <p>{card.jp_name}</p>}{card.en_name && <p>{card.en_name}</p>}<p>卡片密码：{card.id}</p></div>
@@ -79,7 +79,7 @@ export function CardSearchPage() {
   }
 
   return <>{selected && <CardDetail key={selected.cid} card={selected} onBack={() => setSelected(null)} />}<div hidden={!!selected}><div className="page-stack">
-    <div className="intro-block"><p className="eyebrow">ONLINE CARD SEARCH</p><h2>在线卡查</h2><p>输入卡名、效果关键词或卡片密码。需要联网使用。</p></div>
+    <div className="intro-block"><p className="eyebrow">在线卡查</p><h2>在线卡查</h2><p>输入卡名、效果关键词或卡片密码。需要联网使用。</p></div>
     <div className="segmented" aria-label="卡查方式"><button className={mode === 'keyword' ? 'selected' : ''} aria-pressed={mode === 'keyword'} onClick={() => setMode('keyword')}>关键词搜索</button><button className={mode === 'filter' ? 'selected' : ''} aria-pressed={mode === 'filter'} onClick={() => setMode('filter')}>条件筛选</button></div>
     {!online && <p className="error-message" role="status">当前处于离线状态，卡查需要联网。比赛记录等功能仍可离线使用。</p>}
     <div hidden={mode !== 'filter'}><CardFilterSearch onSelect={showCard} /></div>

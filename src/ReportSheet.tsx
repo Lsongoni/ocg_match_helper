@@ -36,7 +36,7 @@ export function ReportSheet({ event, onClose }: { event: EventRecord; onClose: (
 
   return <div className="sheet-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
     <section className="editor-sheet report-sheet" role="dialog" aria-modal="true" aria-label="生成战报">
-      <header className="sheet-header"><div><p className="eyebrow">MATCH REPORT</p><h2>生成战报</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭"><X size={22} /></button></header>
+      <header className="sheet-header"><div><p className="eyebrow">战报</p><h2>生成战报</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭"><X size={22} /></button></header>
       <div className="sheet-body form-stack">
         <div className="field"><span className="field-label">导出内容</span><div className="segmented"><button className={!includeNotes ? 'selected' : ''} onClick={() => setIncludeNotes(false)}>不包含备注</button><button className={includeNotes ? 'selected' : ''} onClick={() => setIncludeNotes(true)}>包含备注</button></div></div>
         <textarea className="report-preview" readOnly value={report} aria-label="战报预览" />

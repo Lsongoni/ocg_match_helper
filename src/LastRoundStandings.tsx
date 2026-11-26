@@ -25,7 +25,7 @@ export function LastRoundStandings({ event, roundsPlayed, wins, draws }: { event
     : estimateLastRound({ participants: event.participants, roundsPlayed, cutSize: event.cutSize, myRank: submitted, myWins: wins, myDraws: draws })
 
   return <section className="section-block standings-panel">
-    <div className="section-heading"><div><p className="eyebrow">IF I...</p><h3>最后一轮还能出轮吗</h3></div><Target size={20} /></div>
+    <div className="section-heading"><div><p className="eyebrow">出轮判断</p><h3>最后一轮还能出轮吗</h3></div><Target size={20} /></div>
     <p className="subtle-note">大分已按前 {roundsPlayed} 轮战绩算出为 <strong>{myPoints} 分</strong>（{wins} 胜 {draws} 平），全场平局率按你的记录取 {Math.round((roundsPlayed ? draws / roundsPlayed : 0) * 100)}%。填一下第 {roundsPlayed} 轮结束后的排名，即可估算最后一轮赢、平、输三种情形的名次。排名只用于当次计算，不保存。</p>
     <form className="standings-form" onSubmit={submit}>
       <label className="field"><span className="field-label">我的排名</span><input type="number" min="1" max={event.participants} inputMode="numeric" value={rank} onChange={e => { setRank(e.target.value); setSubmitted(null) }} placeholder={`1–${event.participants}`} required /></label>
