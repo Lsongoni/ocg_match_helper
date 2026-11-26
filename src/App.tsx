@@ -277,10 +277,10 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
       <div className="hero-deck"><span>使用卡组</span><strong>{event.ownDeck}</strong></div>
     </section>
     <section className="score-strip"><div><span>瑞士战绩</span><strong>{swissRecord(event)}</strong></div><div><span>已完成轮数</span><strong>{played} <small>/ {event.plannedSwissRounds}</small></strong></div><div><span>最终成绩</span><strong className="small-score">{placement(event)}</strong></div></section>
-    {lastRound && <LastRoundPanel event={event} drawRate={drawRate} />}
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">MATCH LOG</p><h3>对局记录</h3></div><span className="count-pill">{visibleMatches(event).length} 场</span></div><MatchList event={event} onEdit={onEditMatch} /></section>
     {canAddSwiss && <button className="button primary full-width add-match" onClick={() => onAddMatch('swiss')}><Plus size={20} />记录 R{played + 1} Match</button>}
     {lastRound && <LastRoundStandings key={`${event.id}-${played}`} event={event} roundsPlayed={played} wins={swissTally.wins} draws={swissTally.draws} />}
+    {lastRound && <LastRoundPanel event={event} drawRate={drawRate} />}
     {(played >= event.plannedSwissRounds || event.advancement !== 'undecided') && <AdvancementPanel key={`${event.id}-${event.cutSize}`} event={event} onAdvanced={onAdvanced} onOut={onOut} />}
     {canAddKnockout && nextStage && nextStage >= 2 && <button className="button primary full-width add-match" onClick={() => onAddMatch('knockout')}><Plus size={20} />记录{stageName(nextStage)} Match</button>}
     {event.status === 'active' && event.advancement === 'undecided' && played > 0 && played < event.plannedSwissRounds && <button className="button quiet full-width" onClick={onEndEarly}>提前结束 · 没出轮</button>}
