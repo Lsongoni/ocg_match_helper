@@ -124,13 +124,6 @@ export function CalculatorPage({ active, savedDrawRate, onDrawRateChange }: { ac
   return <div className="page-stack">
     <div className="intro-block"><p className="eyebrow">赛制计算</p><h2>瑞士轮计算器</h2></div>
 
-    {/* 赛制摘要：三个关键数字 */}
-    <section className="format-summary">
-      <div className="format-figure"><span>参赛</span><strong>{n || '—'}</strong></div>
-      <div className="format-figure"><span>轮数</span><strong>{r || '—'}</strong></div>
-      <div className="format-figure"><span>晋级</span><strong>{cut ? `Top ${cut}` : '—'}</strong></div>
-    </section>
-
     <form className="calc-form" onSubmit={submit}>
       {/* 人数：两个大输入框 */}
       <section className="calc-block">

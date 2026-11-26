@@ -1363,7 +1363,7 @@ body.form-focused .update-banner { display: none }
   color: var(--brand);
 }
 
-/* 两个等宽的输入瓦片 */
+/* 两个等宽的输入瓦片 —— 页面的视觉主角 */
 .calc-duo {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1372,9 +1372,9 @@ body.form-focused .update-banner { display: none }
 
 .calc-tile {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 11px 13px;
   border-radius: var(--r-2);
   background: var(--card-sunken);
 }
@@ -1392,14 +1392,14 @@ body.form-focused .update-banner { display: none }
   border: 0;
   background: transparent;
   color: var(--ink);
-  font-size: 21px;
-  font-weight: 820;
-  letter-spacing: -.035em;
+  font-size: 26px;
+  font-weight: 830;
+  letter-spacing: -.045em;
   font-variant-numeric: tabular-nums;
   outline: none;
+  line-height: 1.1;
 }
 
-.calc-tile inputs,
 .calc-tile input::-webkit-outer-spin-button,
 .calc-tile input::-webkit-inner-spin-button { appearance: none; margin: 0 }
 
