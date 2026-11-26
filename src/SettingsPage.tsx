@@ -1,13 +1,22 @@
 import { useEffect, useState } from 'react'
-import { ArchiveRestore, Download, HardDriveDownload, Info } from 'lucide-react'
+import { ArchiveRestore, Download, HardDriveDownload, Info, RefreshCw, Rocket } from 'lucide-react'
 import { deliverBackup, loadBackup, replaceFromBackup, type LoadedBackup } from './backup'
 import { getSetting } from './db'
 import type { EventRecord } from './domain'
 import { DeckManager } from './DeckManager'
 import { ThemeSettings } from './ThemeSettings'
+import { activateUpdate, checkForUpdate, formatBuildTime, getUpdateSnapshot, statusText, subscribeUpdates, type UpdateSnapshot } from './updates'
 
 function dateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) : '尚未备份'
+}
+
+const BUILD_TIME = formatBuildTime(__BUILD_TIME__)
+
+function useUpdate(): UpdateSnapshot {
+  const [snapshot, setSnapshot] = useState(getUpdateSnapshot)
+  useEffect(() => subscribeUpdates(() => setSnapshot(getUpdateSnapshot())), [])
+  return snapshot
 }
 
 export function SettingsPage({ events, onDecksChanged, onRestored, onBackupSaved }: { events: EventRecord[]; onDecksChanged: () => Promise<void>; onRestored: () => Promise<void>; onBackupSaved: (at: string) => void }) {
@@ -16,6 +25,8 @@ export function SettingsPage({ events, onDecksChanged, onRestored, onBackupSaved
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const update = useUpdate()
+  const checking = update.status === 'checking'
   useEffect(() => { void getSetting<string | null>('lastBackupAt', null).then(setLastBackupAt) }, [])
 
   async function backup() {
@@ -46,8 +57,19 @@ export function SettingsPage({ events, onDecksChanged, onRestored, onBackupSaved
     } catch (error) { setError(error instanceof Error ? error.message : '恢复未完成，请重新打开应用并检查本机记录。') } finally { setBusy(false) }
   }
 
-  return <div className="page-stack"><div className="intro-block"><p className="eyebrow">本机数据</p><h2>设置与备份</h2><p>记录首先存在这台设备上。定期把完整 ZIP 备份保存到 Files 或 iCloud Drive。</p></div>
+  return <div className="page-stack">
+    <div className="intro-block"><p className="eyebrow">本机数据</p><h2>设置与备份</h2><p>记录首先存在这台设备上。定期把完整 ZIP 备份保存到 Files 或 iCloud Drive。</p></div>
     <ThemeSettings />
+
+    <section className="settings-card">
+      <div className="settings-heading"><Rocket size={22} /><div><h3>应用更新</h3><p>{BUILD_TIME ? `当前构建于 ${BUILD_TIME}` : '当前版本信息不可用'}</p></div></div>
+      <p>手机上应用不一定自动提示更新。切回应用时会自动检查一次，也可以随时手动检查。</p>
+      {update.status === 'ready'
+        ? <button className="button primary full-width" onClick={() => void activateUpdate()}><RefreshCw size={18} />立即更新并重启</button>
+        : <button className="button secondary full-width" onClick={() => void checkForUpdate()} disabled={checking}><RefreshCw size={18} />{checking ? '正在检查…' : '检查更新'}</button>}
+      <p className={`update-status ${update.status}`} role="status">{update.status === 'idle' ? '尚未检查更新' : statusText(update.status, BUILD_TIME)}{update.checkedAt ? ` · ${new Date(update.checkedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+    </section>
+
     <section className="settings-card"><div className="settings-heading"><HardDriveDownload size={22} /><div><h3>完整备份</h3><p>上次备份：{dateTime(lastBackupAt)}</p></div></div><p>包含所有赛事、Match、Game、备注、设置和卡组照片。战报 TXT 不能用于恢复。</p><button className="button primary full-width" onClick={() => void backup()} disabled={busy}><Download size={18} />{busy ? '处理中…' : '立即备份 ZIP'}</button></section>
     <section className="settings-card"><div className="settings-heading"><ArchiveRestore size={22} /><div><h3>恢复备份</h3><p>从 Files / iCloud Drive 选择 ZIP 文件</p></div></div><p>先校验并预览内容。确认后，备份会整体替换本机现有记录。</p><label className="button secondary full-width photo-upload">选择备份 ZIP<input type="file" accept=".zip,application/zip" disabled={busy} onChange={e => { void choose(e.target.files?.[0]); e.currentTarget.value = '' }} /></label>
       {pending && <div className="restore-preview"><strong>待恢复备份</strong><span>导出时间：{dateTime(pending.exportedAt)}</span><span>App 版本：{pending.appVersion}</span><span>赛事：{pending.events.length} 场 · 照片：{pending.photos.length} 张</span><button className="button danger full-width" onClick={() => void restore()} disabled={busy}>确认覆盖并恢复</button><button className="text-button muted" onClick={() => setPending(null)}>取消</button></div>}

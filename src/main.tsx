@@ -1,9 +1,9 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { registerSW } from 'virtual:pwa-register'
 import { App } from './App'
 import './styles.css'
 import { loadTheme, watchSystemTheme } from './theme'
+import { registerUpdates, watchVisibility } from './updates'
 
 watchSystemTheme()
 // Apply the saved preference before mounting the interface.
@@ -13,11 +13,9 @@ void loadTheme().catch(error => console.error('无法读取外观设置', error)
   </React.StrictMode>,
 ))
 
-const updateSW = registerSW({
-  onNeedRefresh() {
-    if (window.confirm('新版本已准备好。现在更新应用？未保存的输入可能会丢失。')) void updateSW(true)
-  },
-})
+// 注册 Service Worker：新版本就绪时由界面里的更新条提示，不再弹 confirm。
+registerUpdates()
+watchVisibility()
 
 function adjustForKeyboard() {
   const viewport = window.visualViewport

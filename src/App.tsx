@@ -5,6 +5,7 @@ import { CalculatorPage, LastRoundPanel } from './Calculator'
 import { ReportSheet } from './ReportSheet'
 import { PhotoPanel } from './PhotoPanel'
 import { LastRoundStandings } from './LastRoundStandings'
+import { UpdateBanner } from './UpdateBanner'
 import { SettingsPage } from './SettingsPage'
 import { loadTheme } from './theme'
 import { StatsPage } from './StatsPage'
@@ -433,6 +434,7 @@ export function App() {
     </main>
     <nav className="bottom-nav" aria-label="主导航"><button className={tab === 'current' ? 'active' : ''} onClick={() => { setTab('current'); setSelectedId(null); setEditingEvent(null) }}><ClipboardList size={21} /><span>当前比赛</span></button><button className={tab === 'calculator' ? 'active' : ''} onClick={() => { setTab('calculator'); setSelectedId(null); setEditingEvent(null) }}><Calculator size={21} /><span>计算器</span></button><button className={tab === 'history' ? 'active' : ''} onClick={() => { setTab('history'); setSelectedId(null); setEditingEvent(null) }}><History size={21} /><span>历史比赛</span></button><button className={tab === 'stats' ? 'active' : ''} onClick={() => { setTab('stats'); setSelectedId(null); setEditingEvent(null) }}><BarChart3 size={21} /><span>统计</span></button><button className={tab === 'cards' ? 'active' : ''} onClick={() => { setTab('cards'); setSelectedId(null); setEditingEvent(null) }}><Search size={21} /><span>卡查</span></button><button className={tab === 'settings' ? 'active' : ''} onClick={() => { setTab('settings'); setSelectedId(null); setEditingEvent(null) }}><Settings2 size={21} /><span>设置</span></button></nav>
     {editingMatch && viewed && <MatchEditor event={viewed} match={typeof editingMatch === 'string' ? undefined : editingMatch} newPhase={editingMatch === 'new-knockout' ? 'knockout' : 'swiss'} suggestions={suggestions} onSave={handleMatchSave} onDelete={handleMatchDelete} onClose={() => setEditingMatch(null)} />}
+    <UpdateBanner />
     {reportEvent && <ReportSheet event={reportEvent} onClose={() => setReportEventId(null)} />}
     {backupReminder && <BackupReminder onBackup={() => void remindBackup()} onLater={() => void remindLater()} busy={backupBusy} error={backupError} />}
   </div>

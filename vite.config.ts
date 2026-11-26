@@ -7,7 +7,13 @@ const base = process.env.GITHUB_REPOSITORY
   ? `/${process.env.GITHUB_REPOSITORY.split('/')[1]}/`
   : '/'
 
+// 构建时间：设置页用它判断当前跑的是不是最新版本。
+const buildTime = new Date().toISOString()
+
 export default defineConfig({
+  define: {
+    __BUILD_TIME__: JSON.stringify(buildTime),
+  },
   plugins: [react(), tailwindcss(), VitePWA({
     registerType: 'prompt',
     injectRegister: null,
@@ -21,8 +27,8 @@ export default defineConfig({
       start_url: base,
       scope: base,
       display: 'standalone',
-      background_color: '#f6f7f3',
-      theme_color: '#214d38',
+      background_color: '#f4f5f1',
+      theme_color: '#1c6b47',
       icons: [
         { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
         { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
