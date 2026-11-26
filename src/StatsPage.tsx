@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { BarChart3 } from 'lucide-react'
 import { formatDate, formatRecord, matchLabel, matchOutcome, sortedMatches, type EventRecord } from './domain'
 import { calculateStats, type GroupedRecord, type WinLossDraw } from './stats'
 import { EventFilterControls } from './EventFilterControls'
 import { compareBounds, deckNames, emptyEventFilters, eventsInRange, filterEvents, matchupEvents } from './eventFilters'
+import { EmptyStats } from './illustrations'
 
 function percent(record: WinLossDraw) { return record.total ? `${(record.rate * 100).toFixed(1)}%` : '—' }
 function sample(record: WinLossDraw) { return `${record.total} 场${record.total > 0 && record.total < 10 ? ' · 样本少' : ''}` }
@@ -67,7 +67,7 @@ export function StatsPage({ events }: { events: EventRecord[] }) {
 
   if (!events.length) return <div className="page-stack">
     <div className="intro-block"><p className="eyebrow">我的战绩</p><h2>比赛统计</h2></div>
-    <div className="empty-panel"><BarChart3 size={25} /><strong>还没有统计数据</strong><p>创建赛事并记录 Match 后自动生成。</p></div>
+    <div className="empty-panel"><EmptyStats /><strong>还没有统计数据</strong><p>创建赛事并记录 Match 后自动生成。</p></div>
   </div>
 
   const games = [
@@ -84,7 +84,7 @@ export function StatsPage({ events }: { events: EventRecord[] }) {
     <EventFilterControls value={filters} onChange={value => { setFilters(value); setOpponent(null) }} decks={deckNames(events, true)} events={events} />
     <p className="subtle-note" role="status">当前范围：{filtered.length} 场赛事 · {stats.matchCount} 场 Match{stats.matchCount > 0 && stats.matchCount < 10 ? ' · 样本少' : ''}{previous ? `；对照：${previousEvents.length} 场赛事 · ${previous.matchCount} 场 Match` : ''}</p>
 
-    {!filtered.length && <div className="empty-panel"><strong>这个周期还没有比赛</strong><p>换个卡表周期，或调整筛选条件。</p></div>}
+    {!filtered.length && <div className="empty-panel"><EmptyStats /><strong>这个周期还没有比赛</strong><p>换个卡表周期，或调整筛选条件。</p></div>}
 
     {/* 环形总览：Match 胜率为主视角 */}
     <section className="overview-card">

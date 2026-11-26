@@ -14,6 +14,12 @@ export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
   },
+  server: {
+    watch: {
+      // 编辑器/工具写文件时会留下临时目录，Windows 上监听它会锁死进程。
+      ignored: ['**/.git/**', '**/node_modules/**', '**/*.tmpdir/**', '**/*.tmp'],
+    },
+  },
   plugins: [react(), tailwindcss(), VitePWA({
     registerType: 'prompt',
     injectRegister: null,

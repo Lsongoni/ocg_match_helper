@@ -25,7 +25,7 @@ export function EventFilterControls({ value, onChange, decks, events, history = 
     onChange({ ...value, range })
   }
 
-  return <details className="filter-drawer" open={history}>
+  return <details className="filter-drawer">
     <summary>
       <span className="filter-drawer-label">{history ? '筛选条件' : '统计范围'}</span>
       <span className="filter-drawer-value">{value.range === 'period' ? active.label : value.range === 'custom' ? '自定义日期' : '全部时间'}{value.ownDeck ? ` · ${value.ownDeck}` : ''}</span>

@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { formatDate, placement, totalRecord, type EventRecord } from './domain'
 import { EventFilterControls } from './EventFilterControls'
 import { deckNames, filterEvents, periodFor, type EventFilters } from './eventFilters'
+import { EmptyArchive } from './illustrations'
 
 export function HistoryPage({ events, filters, onFilters, onSelect }: { events: EventRecord[]; filters: EventFilters; onFilters: (value: EventFilters) => void; onSelect: (id: string) => void }) {
   const filtered = filterEvents(events, filters)
@@ -32,6 +33,7 @@ export function HistoryPage({ events, filters, onFilters, onSelect }: { events: 
         <ChevronRight size={17} className="archive-arrow" />
       </button>)}</div>
     </section>)}</div> : <div className="empty-panel">
+      <EmptyArchive />
       <strong>{events.length ? '没有符合条件的比赛' : '还没有历史比赛'}</strong>
       <p>{events.length ? '换个卡表周期，或调整筛选条件。' : '创建赛事后，记录会保存在这台设备上。'}</p>
     </div>}

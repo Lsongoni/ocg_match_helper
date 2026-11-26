@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart3, CalendarDays, Calculator, ClipboardList, FileText, History, Pencil, Plus, Save, Search, Settings2, Trash2, X } from 'lucide-react'
+import { ArrowLeft, BarChart3, Calculator, ClipboardList, FileText, History, Pencil, Plus, Save, Search, Settings2, Trash2, X } from 'lucide-react'
 import { deleteEvent, getSetting, listEvents, saveEvent, setSetting } from './db'
 import { CalculatorPage, LastRoundPanel } from './Calculator'
 import { ReportSheet } from './ReportSheet'
 import { PhotoPanel } from './PhotoPanel'
 import { LastRoundStandings } from './LastRoundStandings'
+import { EmptyMatches } from './illustrations'
 import { UpdateBanner } from './UpdateBanner'
 import { SettingsPage } from './SettingsPage'
 import { loadTheme } from './theme'
@@ -221,13 +222,14 @@ function MatchEditor({ event, match, newPhase = 'swiss', suggestions, onSave, on
 
 function MatchList({ event, onEdit }: { event: EventRecord; onEdit: (match: MatchRecord) => void }) {
   const matches = sortedMatches(event)
-  if (!matches.length) return <div className="empty-panel"><ClipboardList size={25} /><strong>还没有 Match 记录</strong><p>打完一整场 Match 后，在这里一次性填写结果。</p></div>
+  if (!matches.length) return <div className="empty-panel"><EmptyMatches /><strong>还没有 Match 记录</strong><p>打完一整场 Match 后，在这里一次性填写结果。</p></div>
   return <div className="timeline">{matches.map(match => <button className="timeline-row" type="button" key={match.id} onClick={() => onEdit(match)}>
     <span className="timeline-rail" aria-hidden="true"><i className={`timeline-node ${matchOutcome(match)}`} /></span>
     <span className="timeline-body">
-      <span className="timeline-top"><b className="timeline-round">{matchLabel(match, event)}</b><em className={`timeline-tag ${matchOutcome(match)}`}>{outcomeText(match)}</em></span>
+      <span className="timeline-round">{matchLabel(match, event)}</span>
       <strong className="timeline-deck">{matchKindLabel(match) ?? match.opponentDeck}</strong>
       {matchKind(match) === 'normal' && <small className="timeline-games"><span>{turnText(match.games[0].turn)}攻</span>{match.games.map(game => <i key={game.id} className={`game-dot ${game.result}`}>{game.result}</i>)}</small>}
+      <em className={`timeline-tag ${matchOutcome(match)}`}>{outcomeText(match)}</em>
     </span>
   </button>)}</div>
 }
@@ -242,16 +244,22 @@ function AdvancementPanel({ event, onAdvanced, onOut }: { event: EventRecord; on
   </section>
 }
 
-function TotalNote({ value, onSave }: { value: string; onSave: (note: string) => Promise<void> }) {
+function TotalNote({ value, onSave, collapsed }: { value: string; onSave: (note: string) => Promise<void>; collapsed?: boolean }) {
   const [note, setNote] = useState(value)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [open, setOpen] = useState(!collapsed)
   useEffect(() => setNote(value), [value])
   async function save() {
     setBusy(true)
     try { await onSave(note); setError('') } catch { setError('总备注保存失败。') } finally { setBusy(false) }
   }
-  return <section className="section-block"><div className="section-heading"><div><p className="eyebrow">赛事备注</p><h3>赛事总备注</h3></div></div><textarea className="event-note" rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="整场赛事的复盘，可选" />{note !== value && <button className="text-button" onClick={() => void save()} disabled={busy}><Save size={16} />保存总备注</button>}{error && <p className="error-message">{error}</p>}</section>
+  // 赛中默认收起，避免占掉首屏；有内容时标题旁给出提示。
+  if (!open) return <button className="note-toggle" onClick={() => setOpen(true)}>
+    <span><Save size={15} />赛事总备注</span>
+    <em>{value.trim() ? '已记录' : '未填写'}</em>
+  </button>
+  return <section className="section-block"><div className="section-heading"><div><p className="eyebrow">赛事备注</p><h3>赛事总备注</h3></div>{collapsed && <button className="text-button muted" onClick={() => setOpen(false)}>收起</button>}</div><textarea className="event-note" rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="整场赛事的复盘，可选" />{note !== value && <button className="text-button" onClick={() => void save()} disabled={busy}><Save size={16} />保存总备注</button>}{error && <p className="error-message">{error}</p>}</section>
 }
 
 function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEndEarly, onOut, onAdvanced, onSaveNote, onReport, onDelete, drawRate }: {
@@ -277,36 +285,24 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
   const nextStage = event.firstKnockoutStage ? event.firstKnockoutStage / 2 ** knockouts : null
   return <div className="page-stack">
     {onBack && <button className="text-button back-link" onClick={onBack}><ArrowLeft size={17} />返回历史</button>}
-    <header className="event-banner">
-      <div className="banner-glow" aria-hidden="true" />
-      <div className="banner-row">
-        <span className={`banner-status ${event.status}`}><i />{event.status === 'active' ? '进行中' : '已结束'}</span>
-        <button type="button" className="icon-button" onClick={onEditEvent} aria-label="编辑赛事"><Pencil size={16} /></button>
+    <header className="event-head">
+      <div className="event-head-top">
+        <span className={`head-status ${event.status}`}><i />{event.status === 'active' ? '进行中' : '已结束'}</span>
+        <span className="head-deck">{event.ownDeck}</span>
+        <button type="button" className="icon-button subtle" onClick={onEditEvent} aria-label="编辑赛事"><Pencil size={15} /></button>
       </div>
-      <h2 className="banner-title">{event.name}</h2>
-      <div className="banner-deck"><span>使用卡组</span><strong>{event.ownDeck}</strong></div>
-      <div className="banner-facts">
-        <span><CalendarDays size={13} />{formatDate(event.date)}</span>
-        <span>{event.participants} 人</span>
-        <span>{event.plannedSwissRounds} 轮</span>
-        <span>Top {event.cutSize}</span>
+      <h2 className="event-head-title">{event.name}</h2>
+      <div className="event-head-record">
+        <b>{swissRecord(event)}</b>
+        <span className="head-record-note">{knockouts > 0 ? `淘汰赛 ${formatRecord(recordOf(event.matches.filter(match => match.phase === 'knockout')))}` : `${formatDate(event.date)} · ${event.participants} 人 · Top ${event.cutSize}`}</span>
       </div>
-    </header>
-
-    <section className="standings-card">
-      <div className="standings-lead">
-        <p className="standings-label">瑞士战绩</p>
-        <p className="standings-value">{swissRecord(event)}</p>
-        <p className="standings-sub">{knockouts > 0 ? `淘汰赛 ${formatRecord(recordOf(event.matches.filter(match => match.phase === 'knockout')))}` : `总战绩 ${totalRecord(event)}`}</p>
-      </div>
-      <div className="standings-progress">
-        <div className="progress-head"><span>进度</span><b>{played}<small>/{event.plannedSwissRounds}</small></b></div>
+      <div className="head-progress">
         <div className="progress-pips">{Array.from({ length: event.plannedSwissRounds }, (_, index) =>
           <i key={index} className={index < played ? 'done' : index === played && event.status === 'active' ? 'next' : ''} />,
         )}</div>
-        <p className="progress-placement">{placement(event)}</p>
+        <span className="head-progress-text">{played}/{event.plannedSwissRounds} 轮{placement(event) !== '待确认' ? ` · ${placement(event)}` : ''}</span>
       </div>
-    </section>
+    </header>
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">对局</p><h3>对局记录</h3></div><span className="count-pill">{visibleMatches(event).length} 场</span></div><MatchList event={event} onEdit={onEditMatch} /></section>
     {canAddSwiss && <button className="button primary full-width add-match" onClick={() => onAddMatch('swiss')}><Plus size={20} />记录 R{played + 1} Match</button>}
     {lastRound && <LastRoundStandings key={`${event.id}-${played}`} event={event} roundsPlayed={played} wins={swissTally.wins} draws={swissTally.draws} />}
@@ -315,7 +311,7 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
     {canAddKnockout && nextStage && nextStage >= 2 && <button className="button primary full-width add-match" onClick={() => onAddMatch('knockout')}><Plus size={20} />记录{stageName(nextStage)} Match</button>}
     {event.status === 'active' && event.advancement === 'undecided' && played > 0 && played < event.plannedSwissRounds && <button className="button quiet full-width" onClick={onEndEarly}>提前结束 · 没出轮</button>}
     {event.status === 'active' && event.advancement === 'out' && <button className="button quiet full-width" onClick={onEndEarly}>结束赛事</button>}
-    {(visibleMatches(event).length > 0 || event.status === 'finished') && <TotalNote value={event.totalNote} onSave={onSaveNote} />}
+    {(visibleMatches(event).length > 0 || event.status === 'finished') && <TotalNote value={event.totalNote} onSave={onSaveNote} collapsed={event.status === 'active'} />}
     {event.status === 'finished' && <PhotoPanel eventId={event.id} />}
     {event.status === 'finished' && <><div className="end-summary"><span>赛事已结束</span><strong>总战绩 {totalRecord(event)} · {placement(event)}</strong></div><button className="button primary full-width" onClick={onReport}><FileText size={18} />生成战报</button></>}
     {onDelete && <button className="danger-link" onClick={onDelete}><Trash2 size={16} />删除这场赛事</button>}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ImagePlus, Trash2 } from 'lucide-react'
 import { db, type StoredPhoto } from './db'
+import { EmptyPhoto } from './illustrations'
 
 async function canvasBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('无法压缩照片。')), 'image/jpeg', quality))
@@ -65,7 +66,7 @@ export function PhotoPanel({ eventId }: { eventId: string }) {
   }
 
   return <section className="section-block"><div className="section-heading"><div><p className="eyebrow">卡组照片</p><h3>卡组照片</h3></div></div>
-    {url ? <img className="deck-photo" src={url} alt="该场赛事的卡组照片" /> : <div className="photo-empty"><ImagePlus size={24} /><span>为这场赛事保存一张卡组照片</span></div>}
+    {url ? <img className="deck-photo" src={url} alt="该场赛事的卡组照片" /> : <div className="photo-empty"><EmptyPhoto /><span>为这场赛事保存一张卡组照片</span></div>}
     <div className="photo-actions"><label className="button secondary photo-upload"><ImagePlus size={17} />{busy ? '处理中…' : photo ? '更换照片' : '添加照片'}<input type="file" accept="image/*" disabled={busy} onChange={e => { void upload(e.target.files?.[0]); e.currentTarget.value = '' }} /></label>{photo && <button className="text-button muted" onClick={() => void remove()}><Trash2 size={15} />删除照片</button>}</div>
     <p className="field-hint">上传后转换为压缩 JPEG，仅保存在本机，并包含在完整备份中。</p>
     {error && <p className="error-message" role="alert">{error}</p>}
