@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart3, CalendarDays, Calculator, ChevronRight, ClipboardList, FileText, History, Pencil, Plus, Save, Search, Settings2, Trash2, X } from 'lucide-react'
+import { ArrowLeft, BarChart3, CalendarDays, Calculator, ClipboardList, FileText, History, Pencil, Plus, Save, Search, Settings2, Trash2, X } from 'lucide-react'
 import { deleteEvent, getSetting, listEvents, saveEvent, setSetting } from './db'
 import { CalculatorPage, LastRoundPanel } from './Calculator'
 import { ReportSheet } from './ReportSheet'
@@ -222,8 +222,13 @@ function MatchEditor({ event, match, newPhase = 'swiss', suggestions, onSave, on
 function MatchList({ event, onEdit }: { event: EventRecord; onEdit: (match: MatchRecord) => void }) {
   const matches = sortedMatches(event)
   if (!matches.length) return <div className="empty-panel"><ClipboardList size={25} /><strong>还没有 Match 记录</strong><p>打完一整场 Match 后，在这里一次性填写结果。</p></div>
-  return <div className="match-list">{matches.map(match => <button className="match-row" type="button" key={match.id} onClick={() => onEdit(match)}>
-    <span className="round-badge">{matchLabel(match, event)}</span><span className="match-main"><strong>{matchKindLabel(match) ?? match.opponentDeck}</strong>{matchKind(match) === 'normal' && <small>{turnText(match.games[0].turn)} · {match.games.map(game => game.result).join('')}</small>}</span><span className={`outcome ${matchOutcome(match)}`}>{outcomeText(match)}</span><ChevronRight size={18} className="chevron" />
+  return <div className="timeline">{matches.map(match => <button className="timeline-row" type="button" key={match.id} onClick={() => onEdit(match)}>
+    <span className="timeline-rail" aria-hidden="true"><i className={`timeline-node ${matchOutcome(match)}`} /></span>
+    <span className="timeline-body">
+      <span className="timeline-top"><b className="timeline-round">{matchLabel(match, event)}</b><em className={`timeline-tag ${matchOutcome(match)}`}>{outcomeText(match)}</em></span>
+      <strong className="timeline-deck">{matchKindLabel(match) ?? match.opponentDeck}</strong>
+      {matchKind(match) === 'normal' && <small className="timeline-games"><span>{turnText(match.games[0].turn)}攻</span>{match.games.map(game => <i key={game.id} className={`game-dot ${game.result}`}>{game.result}</i>)}</small>}
+    </span>
   </button>)}</div>
 }
 
@@ -272,27 +277,34 @@ function EventDetail({ event, onBack, onEditEvent, onEditMatch, onAddMatch, onEn
   const nextStage = event.firstKnockoutStage ? event.firstKnockoutStage / 2 ** knockouts : null
   return <div className="page-stack">
     {onBack && <button className="text-button back-link" onClick={onBack}><ArrowLeft size={17} />返回历史</button>}
-    <section className="event-hero">
-      <div className="event-topline"><span className="eyebrow">{event.status === 'active' ? '正在进行' : '已结束'}</span><button type="button" className="icon-button light" onClick={onEditEvent} aria-label="编辑赛事"><Pencil size={18} /></button></div>
-      <h2>{event.name}</h2><p className="event-meta"><CalendarDays size={15} />{formatDate(event.date)} <span className="dot" /> {event.participants} 人 · {event.plannedSwissRounds} 轮 · Top {event.cutSize}</p>
-      <div className="hero-deck"><span>使用卡组</span><strong>{event.ownDeck}</strong></div>
-    </section>
-    <section className="scoreboard">
-      <div className="score-ring">
-        <svg viewBox="0 0 66 66" aria-hidden="true">
-          <circle className="ring-track" cx="33" cy="33" r="28" />
-          <circle
-            className="ring-fill" cx="33" cy="33" r="28"
-            strokeDasharray={2 * Math.PI * 28}
-            strokeDashoffset={2 * Math.PI * 28 * (1 - Math.min(1, played / Math.max(1, event.plannedSwissRounds)))}
-          />
-        </svg>
-        <span className="score-ring-text"><b>{played}<small>/{event.plannedSwissRounds}</small></b><small>轮</small></span>
+    <header className="event-banner">
+      <div className="banner-glow" aria-hidden="true" />
+      <div className="banner-row">
+        <span className={`banner-status ${event.status}`}><i />{event.status === 'active' ? '进行中' : '已结束'}</span>
+        <button type="button" className="icon-button" onClick={onEditEvent} aria-label="编辑赛事"><Pencil size={16} /></button>
       </div>
-      <div className="score-figures">
-        <div><span>瑞士战绩</span><strong>{swissRecord(event)}</strong></div>
-        <div><span>{knockouts > 0 ? '淘汰赛战绩' : '总战绩'}</span><strong>{knockouts > 0 ? formatRecord(recordOf(event.matches.filter(match => match.phase === 'knockout'))) : totalRecord(event)}</strong></div>
-        <div className="score-span"><span>最终成绩</span><strong className="placement">{placement(event)}</strong></div>
+      <h2 className="banner-title">{event.name}</h2>
+      <div className="banner-deck"><span>使用卡组</span><strong>{event.ownDeck}</strong></div>
+      <div className="banner-facts">
+        <span><CalendarDays size={13} />{formatDate(event.date)}</span>
+        <span>{event.participants} 人</span>
+        <span>{event.plannedSwissRounds} 轮</span>
+        <span>Top {event.cutSize}</span>
+      </div>
+    </header>
+
+    <section className="standings-card">
+      <div className="standings-lead">
+        <p className="standings-label">瑞士战绩</p>
+        <p className="standings-value">{swissRecord(event)}</p>
+        <p className="standings-sub">{knockouts > 0 ? `淘汰赛 ${formatRecord(recordOf(event.matches.filter(match => match.phase === 'knockout')))}` : `总战绩 ${totalRecord(event)}`}</p>
+      </div>
+      <div className="standings-progress">
+        <div className="progress-head"><span>进度</span><b>{played}<small>/{event.plannedSwissRounds}</small></b></div>
+        <div className="progress-pips">{Array.from({ length: event.plannedSwissRounds }, (_, index) =>
+          <i key={index} className={index < played ? 'done' : index === played && event.status === 'active' ? 'next' : ''} />,
+        )}</div>
+        <p className="progress-placement">{placement(event)}</p>
       </div>
     </section>
     <section className="section-block"><div className="section-heading"><div><p className="eyebrow">对局</p><h3>对局记录</h3></div><span className="count-pill">{visibleMatches(event).length} 场</span></div><MatchList event={event} onEdit={onEditMatch} /></section>

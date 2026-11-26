@@ -25,7 +25,12 @@ export function EventFilterControls({ value, onChange, decks, events, history = 
     onChange({ ...value, range })
   }
 
-  return <section className="filter-form" aria-label={history ? '历史筛选' : '统计筛选'}>
+  return <details className="filter-drawer" open={history}>
+    <summary>
+      <span className="filter-drawer-label">{history ? '筛选条件' : '统计范围'}</span>
+      <span className="filter-drawer-value">{value.range === 'period' ? active.label : value.range === 'custom' ? '自定义日期' : '全部时间'}{value.ownDeck ? ` · ${value.ownDeck}` : ''}</span>
+    </summary>
+    <section className="filter-form" aria-label={history ? '历史筛选' : '统计筛选'}>
     {history && <label className="field"><span className="field-label">搜索赛事或卡组</span><input type="search" placeholder="赛事名称、自己或对手卡组" value={value.query} onChange={e => onChange({ ...value, query: e.target.value })} /></label>}
 
     <div className="field">
@@ -74,5 +79,6 @@ export function EventFilterControls({ value, onChange, decks, events, history = 
       <span>{value.range === 'period' ? active.label : value.range === 'custom' ? `${value.start || '不限'} — ${value.end || '不限'}` : '全部时间'}</span>
       <button className="text-button" onClick={() => onChange({ ...emptyEventFilters })}>重置筛选</button>
     </div>
-  </section>
+    </section>
+  </details>
 }

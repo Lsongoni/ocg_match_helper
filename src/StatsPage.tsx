@@ -29,18 +29,29 @@ function Group({ title, rows, onSelect, compare }: {
   compare?: GroupedRecord[]
 }) {
   const previous = new Map((compare ?? []).map(row => [row.name, row.record]))
+  const most = rows.reduce((max, row) => Math.max(max, row.record.total), 0)
   return <section className="section-block">
     <div className="section-heading"><div><p className="eyebrow">Match 战绩</p><h3>{title}</h3></div></div>
     {onSelect && <p className="subtle-note">点击卡组查看先后攻表现和对应 Match。</p>}
-    {rows.length ? <div className="stats-list">{rows.map(row => {
-      const content = <>
-        <strong>{row.name}<small>{sample(row.record)}</small></strong>
-        <span>{formatRecord(row.record)}</span>
-        <b>{percent(row.record)}<Delta now={row.record} before={previous.get(row.name)} /></b>
+    {rows.length ? <div className="deck-stats">{rows.map(row => {
+      const rate = row.record.total ? row.record.rate * 100 : 0
+      const body = <>
+        <span className="deck-stats-head">
+          <strong>{row.name}</strong>
+          <b>{percent(row.record)}<Delta now={row.record} before={previous.get(row.name)} /></b>
+        </span>
+        <span className="deck-stats-bar">
+          <i className="bar-win" style={{ width: `${rate}%` }} />
+          <i className="bar-loss" style={{ width: `${100 - rate}%` }} />
+        </span>
+        <span className="deck-stats-foot">
+          <em>{formatRecord(row.record)} · {sample(row.record)}</em>
+          <em>{row.record.total && most ? Math.round((row.record.total / most) * 100) : 0}% 场次占比</em>
+        </span>
       </>
       return onSelect
-        ? <button className="stats-row stats-link" key={row.name} onClick={() => onSelect(row.name)} aria-label={`分析对局 ${row.name}`}>{content}</button>
-        : <div className="stats-row" key={row.name}>{content}</div>
+        ? <button className="deck-stats-row deck-stats-link" key={row.name} onClick={() => onSelect(row.name)} aria-label={`分析对局 ${row.name}`}>{body}</button>
+        : <div className="deck-stats-row" key={row.name}>{body}</div>
     })}</div> : <p className="subtle-note">当前范围内没有对局记录。</p>}
   </section>
 }
@@ -75,16 +86,35 @@ export function StatsPage({ events }: { events: EventRecord[] }) {
 
     {!filtered.length && <div className="empty-panel"><strong>这个周期还没有比赛</strong><p>换个卡表周期，或调整筛选条件。</p></div>}
 
-    {previous ? <section className="compare-strip">
+    {/* 环形总览：Match 胜率为主视角 */}
+    <section className="overview-card">
+      <div className="overview-ring">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle className="ov-track" cx="60" cy="60" r="50" />
+          <circle
+            className="ov-fill" cx="60" cy="60" r="50"
+            strokeDasharray={2 * Math.PI * 50}
+            strokeDashoffset={2 * Math.PI * 50 * (1 - (stats.matches.rate || 0))}
+          />
+        </svg>
+        <div className="overview-ring-text">
+          <b>{percent(stats.matches)}</b>
+          <small>Match 胜率</small>
+        </div>
+      </div>
+      <div className="overview-facts">
+        <div><span>赛事</span><strong>{stats.eventCount}</strong></div>
+        <div><span>Match</span><strong>{stats.matchCount}</strong></div>
+        <div><span>出轮</span><strong>{stats.topCount}</strong></div>
+        <div><span>冠军</span><strong>{stats.championCount}</strong></div>
+      </div>
+    </section>
+
+    {previous && <section className="compare-strip">
       <div><span>赛事</span><strong>{stats.eventCount}</strong><small>对照 {previous.eventCount}</small></div>
       <div><span>Match</span><strong>{stats.matchCount}</strong><small>对照 {previous.matchCount}</small></div>
       <div><span>Match 胜率</span><strong>{percent(stats.matches)}<Delta now={stats.matches} before={previous.matches} /></strong><small>对照 {percent(previous.matches)}</small></div>
       <div><span>出轮</span><strong>{stats.topCount}</strong><small>对照 {previous.topCount}</small></div>
-    </section> : <section className="stats-overview">
-      <div><span>赛事</span><strong>{stats.eventCount}</strong></div>
-      <div><span>Match</span><strong>{stats.matchCount}</strong></div>
-      <div><span>Match 胜率</span><strong>{percent(stats.matches)}</strong><span>{sample(stats.matches)}</span></div>
-      <div><span>出轮</span><strong>{stats.topCount}</strong></div>
     </section>}
 
     <section className="stats-details">
