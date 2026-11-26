@@ -1342,96 +1342,177 @@ body.form-focused .update-banner { display: none }
   font-variant-numeric: tabular-nums;
 }
 
-.calc-form { display: grid; gap: 11px }
+.calc-form { display: grid; gap: 11px; min-width: 0 }
 
-/* 单个紧凑卡片装下所有设置 */
-.calc-group {
+/* 分块卡片：每块负责一件事 */
+.calc-block {
   display: grid;
   gap: 10px;
   padding: 14px 15px;
   border-radius: var(--r-4);
   background: var(--card);
   box-shadow: var(--sh-2);
+  min-width: 0;
 }
 
-.calc-group-title {
-  font-size: 11px;
+.calc-block-title {
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: .07em;
   text-transform: uppercase;
   color: var(--brand);
 }
 
-/* 一行一个设置项：标签 + 控件同排 */
-.calc-pair {
+/* 两个等宽的输入瓦片 */
+.calc-duo {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
+}
+
+.calc-tile {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-2);
+  background: var(--card-sunken);
+}
+
+.calc-tile > span:first-child {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.calc-tile input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 21px;
+  font-weight: 820;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.calc-tile inputs,
+.calc-tile input::-webkit-outer-spin-button,
+.calc-tile input::-webkit-inner-spin-button { appearance: none; margin: 0 }
+
+/* 平局率：数字靠左，单位紧跟其后，与其它格的大数字对齐 */
+.calc-tile-input {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
   min-width: 0;
 }
 
-.calc-pair > .field-label {
+/* 数字右对齐贴近单位，整组再靠左，与其它格的大数字起始位置一致 */
+.calc-tile-input { display: flex; align-items: baseline; gap: 1px; min-width: 0; justify-content: flex-start }
+
+.calc-tile-input input {
+  flex: 0 0 auto;
+  width: 1.5em;
+  min-width: 0;
+  padding: 0;
+  text-align: right;
+}
+
+.calc-tile-input em {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* 模拟次数：瓦片内的分段控件 */
+.calc-tile .segmented.compact { padding: 2px; background: var(--card) }
+.calc-tile .segmented.compact button { min-height: 32px; font-size: 11px; padding: 0 4px; min-width: 0 }
+
+.calc-tile-wide { grid-column: 1 / -1 }
+
+/* 标签 + 分段控件同排 */
+.calc-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.calc-row-label {
   font-size: 11.5px;
+  font-weight: 700;
   color: var(--ink-mid);
   white-space: nowrap;
 }
 
-.calc-pair .segmented.compact {
-  min-width: 0;
-  padding: 2px;
-  border-radius: var(--r-1);
-  /* 与带输入框的行对齐，避免各行控件宽度参差 */
-  max-width: 210px;
-}
+.calc-row .segmented { min-width: 0 }
+.calc-row .segmented button { min-height: 36px; font-size: 12px; padding: 0 6px; min-width: 0 }
 
-.calc-pair .segmented.compact button {
-  min-width: 0;
-  min-height: 34px;
-  padding: 0 6px;
-  font-size: 11.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.calc-inline-input { min-width: 0 }
-
-.calc-inline-input input,
-.calc-pair input.calc-inline-input {
+.calc-wide-input {
   width: 100%;
   min-width: 0;
-  min-height: 38px;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: var(--r-1);
-  background: var(--card-sunken);
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--brand);
+  border-radius: var(--r-2);
+  background: var(--card);
+  color: var(--ink);
   font-size: 16px;
   text-align: center;
+  outline: none;
 }
 
-.record-inputs.compact { min-width: 0; gap: 4px }
+/* 末轮前战绩：三个等分格子，数字在上、单位在下 */
+.calc-tile-wide .record-inputs { gap: 6px }
 
-.record-inputs.compact input {
+.record-cell {
+  display: grid;
   flex: 1;
+  gap: 1px;
+  justify-items: center;
   min-width: 0;
-  min-height: 38px;
   padding: 7px 4px;
-  border: 0;
   border-radius: var(--r-1);
-  background: var(--card-sunken);
-  font-size: 16px;
+  background: var(--card);
 }
 
-/* 计算器表单整体不能被内容撑宽 */
-.calc-group { min-width: 0; overflow: hidden }
-.calc-form { min-width: 0 }
-.calc-form .form-grid { min-width: 0 }
-.calc-form .field { min-width: 0 }
-.calc-form .field input { min-width: 0 }
+.record-cell input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 820;
+  letter-spacing: -.03em;
+  text-align: center;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
 
-.calc-group .field input { background: var(--card-sunken); border-color: transparent }
-.calc-group .field input:focus { border-color: var(--brand); background: var(--card) }
+.record-cell input::-webkit-outer-spin-button,
+.record-cell input::-webkit-inner-spin-button { appearance: none; margin: 0 }
+
+.record-cell em {
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.calc-submit { margin-top: 2px }
+
+.calc-group .field input,
+.calculator-form .field input { background: var(--card-sunken); border-color: transparent }
 
 .calculator-form {
   display: grid;

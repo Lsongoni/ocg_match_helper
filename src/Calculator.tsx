@@ -124,7 +124,7 @@ export function CalculatorPage({ active, savedDrawRate, onDrawRateChange }: { ac
   return <div className="page-stack">
     <div className="intro-block"><p className="eyebrow">赛制计算</p><h2>瑞士轮计算器</h2></div>
 
-    {/* 赛制摘要：一眼看到当前设定 */}
+    {/* 赛制摘要：三个关键数字 */}
     <section className="format-summary">
       <div className="format-figure"><span>参赛</span><strong>{n || '—'}</strong></div>
       <div className="format-figure"><span>轮数</span><strong>{r || '—'}</strong></div>
@@ -132,52 +132,71 @@ export function CalculatorPage({ active, savedDrawRate, onDrawRateChange }: { ac
     </section>
 
     <form className="calc-form" onSubmit={submit}>
-      <section className="calc-group">
-        <div className="form-grid">
-          <label className="field"><span className="field-label">参赛人数</span><input type="number" min="2" inputMode="numeric" value={people} onChange={e => setPeople(e.target.value)} /></label>
-          <label className="field"><span className="field-label">晋级人数</span><input type="number" min="1" inputMode="numeric" aria-label="晋级人数" value={cut} onChange={e => { setCut(e.target.value); setCutMode('manual') }} /></label>
+      {/* 人数：两个大输入框 */}
+      <section className="calc-block">
+        <div className="calc-duo">
+          <label className="calc-tile">
+            <span>参赛人数</span>
+            <input type="number" min="2" inputMode="numeric" value={people} onChange={e => setPeople(e.target.value)} />
+          </label>
+          <label className="calc-tile">
+            <span>晋级人数</span>
+            <input type="number" min="1" inputMode="numeric" aria-label="晋级人数" value={cut} onChange={e => { setCut(e.target.value); setCutMode('manual') }} />
+          </label>
         </div>
-        <div className="calc-pair">
-          <span className="field-label">轮数</span>
-          <div className="segmented compact" role="group" aria-label="瑞士轮轮数方式">
+      </section>
+
+      {/* 轮数 / 晋级：自动或手动，二选一的分段块 */}
+      <section className="calc-block">
+        <div className="calc-row">
+          <span className="calc-row-label">轮数</span>
+          <div className="segmented" role="group" aria-label="瑞士轮轮数方式">
             <button type="button" className={roundMode === 'auto' ? 'selected' : ''} onClick={() => setRoundMode('auto')}>自动 {recommended?.swissRounds ?? '—'}</button>
             <button type="button" className={roundMode === 'manual' ? 'selected' : ''} onClick={() => { if (roundMode === 'auto') setRounds(recommended ? String(recommended.swissRounds) : ''); setRoundMode('manual') }}>手动</button>
           </div>
-          {roundMode === 'manual' && <input type="number" min="1" inputMode="numeric" value={rounds} onChange={e => setRounds(e.target.value)} className="calc-inline-input" aria-label="自定义轮数" />}
         </div>
-        <div className="calc-pair">
-          <span className="field-label">晋级</span>
-          <div className="segmented compact" role="group" aria-label="晋级人数方式">
+        {roundMode === 'manual' && <input type="number" min="1" inputMode="numeric" value={rounds} onChange={e => setRounds(e.target.value)} className="calc-wide-input" aria-label="自定义轮数" placeholder="输入轮数" />}
+        <div className="calc-row">
+          <span className="calc-row-label">晋级</span>
+          <div className="segmented" role="group" aria-label="晋级人数方式">
             <button type="button" className={cutMode === 'auto' ? 'selected' : ''} onClick={() => setCutMode('auto')}>自动</button>
             <button type="button" className={cutMode === 'manual' ? 'selected' : ''} onClick={() => { setCut(cut); setCutMode('manual') }}>手动</button>
           </div>
         </div>
-        <div className="calc-pair">
-          <span className="field-label">平局率</span>
-          <div className="input-suffix calc-inline-input"><input type="number" min="0" max="100" step="0.1" inputMode="decimal" value={drawPercent} onChange={e => setDrawPercent(e.target.value)} aria-label="平局率" /><span>%</span></div>
-        </div>
-        <div className="calc-pair">
-          <span className="field-label">次数</span>
-          <div className="segmented compact" role="group" aria-label="模拟次数">
-            <button type="button" className={iterations === 100000 ? 'selected' : ''} onClick={() => setIterations(100000)}>10 万</button>
-            <button type="button" className={iterations === 1000000 ? 'selected' : ''} onClick={() => setIterations(1000000)}>100 万</button>
+      </section>
+
+      {/* 模拟假设：两个对半的输入块 */}
+      <section className="calc-block">
+        <h3 className="calc-block-title">模拟假设</h3>
+        <div className="calc-duo">
+          <label className="calc-tile">
+            <span>平局率</span>
+            <span className="calc-tile-input">
+              <input type="number" min="0" max="100" step="0.1" inputMode="decimal" value={drawPercent} onChange={e => setDrawPercent(e.target.value)} aria-label="平局率" />
+              <em>%</em>
+            </span>
+          </label>
+          <div className="calc-tile">
+            <span>模拟次数</span>
+            <div className="segmented compact" role="group" aria-label="模拟次数">
+              <button type="button" className={iterations === 100000 ? 'selected' : ''} onClick={() => setIterations(100000)}>10 万</button>
+              <button type="button" className={iterations === 1000000 ? 'selected' : ''} onClick={() => setIterations(1000000)}>100 万</button>
+            </div>
           </div>
         </div>
-        <div className="calc-pair">
-          <span className="field-label">末轮前</span>
-          <div className="record-inputs compact">
-            <input type="number" min="0" inputMode="numeric" value={currentWins} onChange={e => setCurrentWins(e.target.value)} placeholder="胜" aria-label="胜场" />
-            <span>-</span>
-            <input type="number" min="0" inputMode="numeric" value={currentLosses} onChange={e => setCurrentLosses(e.target.value)} placeholder="负" aria-label="负场" />
-            <span>-</span>
-            <input type="number" min="0" inputMode="numeric" value={currentDraws} onChange={e => setCurrentDraws(e.target.value)} placeholder="平" aria-label="平局" />
+        <div className="calc-tile calc-tile-wide">
+          <span>最后一轮前战绩（可选）</span>
+          <div className="record-inputs">
+            <div className="record-cell"><input type="number" min="0" inputMode="numeric" value={currentWins} onChange={e => setCurrentWins(e.target.value)} placeholder="0" aria-label="胜场" /><em>胜</em></div>
+            <div className="record-cell"><input type="number" min="0" inputMode="numeric" value={currentLosses} onChange={e => setCurrentLosses(e.target.value)} placeholder="0" aria-label="负场" /><em>负</em></div>
+            <div className="record-cell"><input type="number" min="0" inputMode="numeric" value={currentDraws} onChange={e => setCurrentDraws(e.target.value)} placeholder="0" aria-label="平局" /><em>平</em></div>
           </div>
         </div>
       </section>
 
       {!recommended && <p className="field-hint">少于 8 人或人数无效时无自动推荐，请手动设置轮数和晋级人数。</p>}
       {formError && <p className="error-message" role="alert">{formError}</p>}
-      <button type="submit" className="button primary full-width"><Calculator size={18} />查看模拟结果</button>
+      <button type="submit" className="button primary full-width calc-submit"><Calculator size={18} />查看模拟结果</button>
     </form>
     {requested && <SimulationView key={keyOf(requested)} input={requested} currentRecord={current} autoStart />}
   </div>
