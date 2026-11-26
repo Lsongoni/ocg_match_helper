@@ -89,3 +89,21 @@ select:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px so
 ::placeholder { color:var(--text-soft);opacity:1 }
 
 .settings-card>.error-message { color:var(--danger) }
+
+.standings-panel { border:1px solid var(--border);background:var(--surface);border-radius:15px;padding:17px;display:grid;gap:13px }
+.standings-panel h3 { font-size:20px }
+.standings-form { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end }
+.standings-form .button { height:48px;padding:10px 20px }
+.standings-meta { display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text-muted) }
+.standings-list { display:grid;background:var(--surface-subtle);border:1px solid var(--border);border-radius:12px;overflow:hidden }
+.standings-row { display:grid;grid-template-columns:28px 1fr 1fr;align-items:center;gap:10px;padding:11px 13px;font-size:13px }
+.standings-row+ .standings-row { border-top:1px solid var(--border) }
+.standings-row small { grid-column:1 / -1;font-size:11px;color:var(--text-muted) }
+.standings-outcome { font-weight:800;color:var(--accent-text) }
+.standings-points { color:var(--text-muted);font-size:12px }
+.standings-verdict { justify-self:end;font-weight:800;font-size:12px;border-radius:7px;padding:3px 9px }
+.standings-row.safe .standings-verdict { background:var(--accent-soft);color:var(--accent-text) }
+.standings-row.border .standings-verdict { background:var(--warning-soft);color:var(--warning) }
+.standings-row.out .standings-verdict { background:var(--danger-soft);color:var(--danger) }
+.standings-panel .notice { align-items:center }
+@media(max-width:359px){ .standings-form { grid-template-columns:1fr } }
