@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart3, Calculator, ClipboardList, FileText, History, Pencil, Plus, Save, Search, Settings2, Trash2, X } from 'lucide-react'
+import { ArrowLeft, BarChart3, Calculator, ClipboardList, FileText, History, Pencil, Plus, RefreshCw, Save, Search, Settings2, Trash2, X } from 'lucide-react'
 import { deleteEvent, getSetting, listEvents, saveEvent, setSetting } from './db'
 import { CalculatorPage, LastRoundPanel } from './Calculator'
 import { ReportSheet } from './ReportSheet'
@@ -63,6 +63,8 @@ function EventForm({ initial, previous, suggestions, onSave, onCancel }: {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [reused, setReused] = useState(false)
+  // 赛制能自动推荐时默认收起，只有需要改轮数/晋级人数时才展开。
+  const [showFormat, setShowFormat] = useState(Boolean(initial))
   const recommended = getTournamentFormat(Number(participants))
   const finalRounds = roundMode === 'auto' ? recommended?.swissRounds ?? 0 : Number(rounds)
   const cutSize = cutMode === 'auto' ? String(recommended?.topCut ?? '') : manualCut
@@ -92,42 +94,67 @@ function EventForm({ initial, previous, suggestions, onSave, onCancel }: {
     try { await onSave(record) } catch { setError('保存失败，请检查设备存储空间后重试。') } finally { setBusy(false) }
   }
 
-  return <form className="form-stack" onSubmit={submit}>
+  return <form className="form-stack compact-form" onSubmit={submit}>
     <div className="intro-block">
       <p className="eyebrow">{initial ? '编辑赛事' : '开始记录'}</p>
       <h2>{initial ? '赛事信息' : '新建一场比赛'}</h2>
-      <p>比赛结束一个 Match 后，再打开这里一次性记录。</p>
     </div>
-    {!initial && previous && <section className="reuse-event"><button type="button" className="button secondary full-width" onClick={() => {
+    {!initial && previous && <button type="button" className="reuse-bar" onClick={() => {
       const fields = reusableEventFields(previous)
       setName(fields.name); setDate(fields.date); setParticipants(String(fields.participants)); setOwnDeck(fields.ownDeck)
       setRounds(String(fields.plannedSwissRounds)); setCutSize(String(fields.cutSize)); setRoundMode('manual'); setCutMode('manual'); setError(''); setReused(true)
-    }}>沿用上次赛事设置</button><p className="subtle-note">{formatDate(previous.date)} · {previous.name} · {previous.ownDeck}</p>{reused && <p className="success-message" role="status">已填入设置，日期为今天。请核对人数；轮数与晋级人数保留为手动值，可切回自动推荐。</p>}</section>}
+    }}>
+      <span><RefreshCw size={15} />沿用上次</span>
+      <em>{previous.name} · {previous.ownDeck}</em>
+    </button>}
+    {reused && <p className="success-message" role="status">已填入上次设置，日期为今天；请核对人数。</p>}
+
     <Field label="赛事名称"><input value={name} onChange={e => setName(e.target.value)} placeholder="例如：周末店赛" /></Field>
+
     <div className="form-grid event-form-grid">
       <Field label="比赛日期"><span className="event-date-input"><span aria-hidden="true">{formatDate(date)}</span><input type="date" value={date} onChange={e => setDate(e.target.value)} /></span></Field>
       <Field label="参赛人数"><input inputMode="numeric" type="number" min="2" value={participants} onChange={e => setParticipants(e.target.value)} placeholder="例如 64" /></Field>
     </div>
-    <div className="field">
-      <span className="field-label">瑞士轮轮数</span>
-      <div className="segmented" role="group" aria-label="瑞士轮轮数方式">
-        <button type="button" className={roundMode === 'auto' ? 'selected' : ''} onClick={() => setRoundMode('auto')}>自动推荐</button>
-        <button type="button" className={roundMode === 'manual' ? 'selected' : ''} onClick={() => { if (!rounds) setRounds(recommended ? String(recommended.swissRounds) : ''); setRoundMode('manual') }}>手动填写</button>
-      </div>
-      {roundMode === 'manual' && <input inputMode="numeric" type="number" min="1" value={rounds} onChange={e => setRounds(e.target.value)} placeholder="轮数" />}
-      <span className="field-hint">{recommended ? `推荐 ${recommended.swissRounds} 轮，Top ${recommended.topCut}；按人数区间规则计算。` : '少于 8 人或人数无效时无自动推荐，请手动设置轮数和晋级人数。'}</span>
-    </div>
-    <Field label="晋级人数">
-      <div className="segmented" role="group" aria-label="晋级人数方式">
-        <button type="button" className={cutMode === 'auto' ? 'selected' : ''} onClick={() => setCutMode('auto')}>自动推荐</button>
-        <button type="button" className={cutMode === 'manual' ? 'selected' : ''} onClick={() => { if (!manualCut) setCutSize(cutSize); setCutMode('manual') }}>手动填写</button>
-      </div>
-      <div className="chip-row">{[4, 8, 16, 32].filter(value => !participants || value <= Number(participants)).map(value =>
-        <button key={value} type="button" className={`chip ${cutSize === String(value) ? 'active' : ''}`} onClick={() => { setCutSize(String(value)); setCutMode('manual') }}>Top {value}</button>,
-      )}</div>
-      <input inputMode="numeric" type="number" min="2" value={cutSize} onChange={e => { setCutSize(e.target.value); setCutMode('manual') }} aria-label="自定义晋级人数" placeholder="或输入自定义人数" />
-    </Field>
+
     <Field label="使用卡组"><input value={ownDeck} onChange={e => setOwnDeck(e.target.value)} placeholder="例如：白森林" list="own-deck-suggestions" /><datalist id="own-deck-suggestions">{suggestions.map(deck => <option key={deck} value={deck} />)}</datalist></Field>
+
+    {/* 赛制：能自动推荐时只显示一行结论，需要时才展开手动设置 */}
+    <section className="format-row">
+      <div className="format-row-head">
+        <span className="field-label">赛制</span>
+        <button type="button" className="text-button" onClick={() => setShowFormat(!showFormat)}>
+          {showFormat ? '收起' : '手动设置'}
+        </button>
+      </div>
+      {!showFormat && <p className="format-row-value">
+        {recommended ? `${recommended.swissRounds} 轮 · Top ${recommended.topCut}` : '人数不足 8 人，请手动设置'}
+        {recommended && <em>按 {participants} 人推荐</em>}
+      </p>}
+      {showFormat && <>
+        <div className="field">
+          <span className="field-label">瑞士轮轮数</span>
+          <div className="segmented" role="group" aria-label="瑞士轮轮数方式">
+            <button type="button" className={roundMode === 'auto' ? 'selected' : ''} onClick={() => setRoundMode('auto')}>自动 {recommended?.swissRounds ?? '—'}</button>
+            <button type="button" className={roundMode === 'manual' ? 'selected' : ''} onClick={() => { if (!rounds) setRounds(recommended ? String(recommended.swissRounds) : ''); setRoundMode('manual') }}>手动填写</button>
+          </div>
+          {roundMode === 'manual' && <input inputMode="numeric" type="number" min="1" value={rounds} onChange={e => setRounds(e.target.value)} placeholder="轮数" />}
+        </div>
+        <div className="field">
+          <span className="field-label">晋级人数</span>
+          <div className="segmented" role="group" aria-label="晋级人数方式">
+            <button type="button" className={cutMode === 'auto' ? 'selected' : ''} onClick={() => setCutMode('auto')}>自动 {recommended?.topCut ? `Top ${recommended.topCut}` : '—'}</button>
+            <button type="button" className={cutMode === 'manual' ? 'selected' : ''} onClick={() => { if (!manualCut) setCutSize(cutSize); setCutMode('manual') }}>手动填写</button>
+          </div>
+          {cutMode === 'manual' && <>
+            <div className="chip-row">{[4, 8, 16, 32].filter(value => !participants || value <= Number(participants)).map(value =>
+              <button key={value} type="button" className={`chip ${cutSize === String(value) ? 'active' : ''}`} onClick={() => setCutSize(String(value))}>Top {value}</button>,
+            )}</div>
+            <input inputMode="numeric" type="number" min="2" value={cutSize} onChange={e => setCutSize(e.target.value)} aria-label="自定义晋级人数" placeholder="或输入自定义人数" />
+          </>}
+        </div>
+      </>}
+    </section>
+
     {error && <p className="error-message" role="alert">{error}</p>}
     <div className="form-actions">
       {onCancel && <button type="button" className="button secondary" onClick={onCancel}>取消</button>}
